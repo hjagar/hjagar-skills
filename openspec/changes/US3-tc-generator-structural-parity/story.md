@@ -16,11 +16,17 @@
 - When the new validation script runs against it
 - Then it reports failure; a compliant sample reports success
 
+**Scenario 3: skill-improver compliance pass**
+- Given the reworked tc-generator/SKILL.md (post Hard Rules formalization)
+- When the `skill-improver` skill audits it against the LLM-first skill standard
+- Then no unresolved compliance findings remain (or any accepted exceptions are explicitly documented in the story)
+
 ### Dependencies
 - None identified (independent slice)
 
 ### Resolved decisions
 - [x] Every current Step in `tc-generator/SKILL.md` becomes a formal, numbered Hard Rule — same criterion as US2, not just the steps already using imperative language.
+- [x] Run `skill-improver` against the reworked tc-generator skill and apply its findings, so the result is as compliant as possible with the LLM-first skill standard, not just structurally parallel to us-refinement.
 
 <!-- [AI-DATA]
 id: US3
@@ -44,4 +50,8 @@ scenarios:
     given: "A sample tc-generator output that violates a documented hard rule"
     when: "The new validation script runs against it"
     then: "It reports failure; a compliant sample reports success"
+  - name: "skill-improver compliance pass"
+    given: "The reworked tc-generator/SKILL.md"
+    when: "The skill-improver skill audits it against the LLM-first skill standard"
+    then: "No unresolved compliance findings remain, or exceptions are explicitly documented"
 -->
