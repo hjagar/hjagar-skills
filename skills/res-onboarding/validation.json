@@ -1,0 +1,12 @@
+{
+  "skill": "res-onboarding",
+  "validator": "scripts/validate_onboarding.py",
+  "fixtures": {
+    "valid": [
+      "tests/mock_valid_onboarding.md"
+    ],
+    "invalid": [
+      "tests/mock_invalid_onboarding.md"
+    ]
+  }
+}
