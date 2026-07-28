@@ -1,0 +1,12 @@
+{
+  "skill": "req-discovery",
+  "validator": "scripts/validate_req_discovery.py",
+  "fixtures": {
+    "valid": [
+      "tests/mock_valid_req_discovery.md"
+    ],
+    "invalid": [
+      "tests/mock_invalid_req_discovery.md"
+    ]
+  }
+}

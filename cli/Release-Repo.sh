@@ -47,14 +47,10 @@ if [[ "$GATE_FAILED" == true ]]; then
     exit 1
 fi
 
-echo "  checking Python schema validation on mock_valid_us.md..."
-if ! python3 scripts/validate_refinement.py tests/mock_valid_us.md; then
-    echo "Validation failed on mock_valid_us.md. Aborting."
-    exit 1
-fi
-echo "  checking Python schema validation on mock_invalid_us.md..."
-if python3 scripts/validate_refinement.py tests/mock_invalid_us.md &>/dev/null; then
-    echo "Validation unexpectedly succeeded on mock_invalid_us.md. Aborting."
+# shellcheck source=lib/quality-gate.sh
+source "$REPO_ROOT/cli/lib/quality-gate.sh"
+if ! run_quality_gate "$REPO_ROOT"; then
+    echo "Shared quality gate failed. Aborting." >&2
     exit 1
 fi
 echo "  All quality gate checks passed."

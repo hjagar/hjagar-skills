@@ -4,7 +4,7 @@ description: "Trigger: user pastes a transcript, references a meeting, or asks t
 license: MIT
 metadata:
   author: hjagar
-  version: "v1.0.1"
+  version: "1.1.0"
 ---
 
 # req-discovery

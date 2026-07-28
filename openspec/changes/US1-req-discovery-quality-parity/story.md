@@ -1,27 +1,49 @@
-## req-discovery quality parity
+## Shared skill release quality gate with req-discovery validation
 
 **As a** hjagar-skills maintainer
-**I want** req-discovery to have a validator script plus valid/invalid output fixtures (mirroring us-refinement's `scripts/validate_refinement.py` + `tests/mock_*.md` pattern) and to be wired into the release quality gate
-**So that** req-discovery's output contract is checked automatically before release, same as us-refinement
+**I want** a shared release quality gate that runs the declared contract validation for each participating skill, starting with req-discovery
+**So that** structured skill output contracts are verified consistently before release without duplicating release logic per skill
 
 ### Acceptance criteria
 
-**Scenario 1: Validator catches non-compliant output**
-- Given a sample req-discovery output that violates one of its documented Hard Rules (e.g. missing hidden en-summary comment, wrong language-matching)
-- When the new validation script runs against that sample
-- Then it reports a failure
+**Scenario 1: Shared gate runs each participating skill's declared validation**
+- Given one or more skills declare a supported validation contract
+- When the release quality gate runs
+- Then it discovers and executes every declared validation using the shared gate
+- And a failure from any participating skill fails the release quality gate
 
-**Scenario 2: Valid output passes validation**
-- Given a sample req-discovery output that follows all documented Hard Rules
-- When the validation script runs against that sample
-- Then it reports success
+**Scenario 2: req-discovery valid fixture passes its full output contract**
+- Given a req-discovery fixture that contains every required output field and structure
+- When the shared release quality gate validates req-discovery
+- Then validation succeeds
+- And it verifies title, story, context, resolution, confidence, conditional Possible match behavior, language matching, and the hidden English summary comment
+
+**Scenario 3: req-discovery contract violations fail validation**
+- Given a req-discovery fixture that omits or violates any required output field or structure
+- When the shared release quality gate validates req-discovery
+- Then validation fails and identifies the violated contract rule
+
+**Scenario 4: Existing participating-skill validation remains protected**
+- Given a skill already has release validation
+- When the shared release quality gate replaces skill-specific release wiring
+- Then that skill's valid and invalid fixtures retain their expected pass and fail outcomes
+
+**Scenario 5: Validation declarations remain safe and portable**
+- Given a skill participates in the shared release quality gate
+- When it declares its validation contract
+- Then the declaration uses supported validator types and fixture expectations
+- And it does not require arbitrary shell-command execution
 
 ### Dependencies
-- None identified (independent slice)
+- None identified
 
 ### Resolved decisions
-- [x] Validator scope: check ALL documented output fields — `title`, `story`, `context`, `resolution`, `confidence`, the `Possible match` wrapper, and the hidden `<!-- en-summary: ... -->` comment — not just the critical subset.
-- [x] `metadata.version` bumps from `v1.0.1` to `v1.1.0` as part of this change (minor: new tooling, not a patch).
+- [x] The release quality gate is shared across skills; skills opt in through declarative, constrained validation configuration.
+- [x] req-discovery is the first skill added through the shared mechanism.
+- [x] During the development rollout, skills without validation configuration are omitted from the gate; revisit whether they become release-blocking after every skill has been reviewed.
+- [x] Validator coverage includes every documented req-discovery output-contract field and structural requirement.
+- [x] Existing participating-skill validation remains covered by the shared gate.
+- [x] `metadata.version` for req-discovery bumps from `v1.0.1` to `v1.1.0` as part of this change.
 
 <!-- [AI-DATA]
 id: US1
@@ -37,12 +59,24 @@ metadata:
   auth: "none"
   ui: "none"
 scenarios:
-  - name: "Validator catches non-compliant output"
-    given: "A sample req-discovery output that violates a documented Hard Rule"
-    when: "The new validation script runs against that sample"
-    then: "It reports a failure"
-  - name: "Valid output passes validation"
-    given: "A sample req-discovery output that follows all documented Hard Rules"
-    when: "The validation script runs against that sample"
-    then: "It reports success"
+  - name: "Shared gate runs each participating skill's declared validation"
+    given: "One or more skills declare a supported validation contract"
+    when: "The release quality gate runs"
+    then: "It executes every declared validation and fails if any participating skill fails"
+  - name: "req-discovery valid fixture passes its full output contract"
+    given: "A req-discovery fixture contains every required output field and structure"
+    when: "The shared release quality gate validates req-discovery"
+    then: "Validation succeeds after verifying the full declared contract"
+  - name: "req-discovery contract violations fail validation"
+    given: "A req-discovery fixture omits or violates a required output rule"
+    when: "The shared release quality gate validates req-discovery"
+    then: "Validation fails and identifies the violated rule"
+  - name: "Existing participating-skill validation remains protected"
+    given: "A skill already has release validation"
+    when: "The shared release quality gate replaces skill-specific wiring"
+    then: "Its valid and invalid fixtures retain their expected outcomes"
+  - name: "Validation declarations remain safe and portable"
+    given: "A skill participates in the shared release quality gate"
+    when: "It declares its validation contract"
+    then: "The declaration uses supported types and fixture expectations without arbitrary shell commands"
 -->
