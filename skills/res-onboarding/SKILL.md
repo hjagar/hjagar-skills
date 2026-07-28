@@ -1,61 +1,56 @@
 ---
 name: res-onboarding
-description: Onboards a new developer — junior or senior — into a codebase, whether the project is brand-new or already in progress. Trigger this skill whenever the user invokes /onboarding, or asks things like "onboarding a un dev nuevo", "arranca un junior/senior en el proyecto", "necesito guiar a alguien nuevo en el equipo", "genera una guía de onboarding". Also trigger when a new collaborator introduces themselves at the start of a session in a way that implies they need project orientation.
+description: "Trigger: /onboarding, onboarding a un dev nuevo, arranca un junior/senior, guiar a alguien nuevo, guía de onboarding. Onboards a new developer (junior or senior) into a codebase."
+license: MIT
+metadata:
+  author: hjagar
+  version: "1.0.0"
 ---
 
-# Onboarding
+## Activation Contract
 
-Onboards a developer into a project by combining two things the project may or may not already have (an AI-instructions file, a domain-context folder) with two decisions about the person joining (experience level, project maturity).
+Activate this skill when:
+- The user types `/onboarding` (optionally with `[stage]` and/or `[level]`, e.g., `/onboarding junior`, `/onboarding new junior`, `/onboarding in-progress senior`).
+- The user asks to onboard a developer (e.g., "onboarding a un dev nuevo", "arranca un junior/senior en el proyecto", "necesito guiar a alguien nuevo", "genera una guía de onboarding").
+- A new collaborator introduces themselves at the start of a session implying they need project orientation.
 
-**Core principle — do not duplicate what already exists.** Before generating anything, check whether the project already documents it. Never write down what the code already demonstrates clearly and consistently; only write what the code does NOT yet make evident. If the project already has an AI-instructions file that states this same philosophy, defer to it instead of re-deriving your own summary.
+## Hard Rules
 
-## Command
+1. **No Duplicate Documentation:** Never document what existing files or codebase patterns already make clear and consistent. Defer to existing project AI-instruction files (`CLAUDE.md`, `AI.md`, `AGENTS.md`, `core.md`, `.cursorrules`).
+2. **AI-Instructions File Detection:** Always check root for an AI-instructions file first. If found, respect its philosophy and use it as authority. If missing, perform a minimal scan and produce non-obvious architecture rules/gotchas.
+3. **Domain Context Preservation:** Reference existing domain-context docs (`docs/context/`, `docs/domain/`, README wiki) without re-summarizing. Never infer domain logic solely from code; ask the user or PO if absent.
+4. **Explicit Level Resolution:** Resolve developer level in strict priority order: (1) CLI argument, (2) user/session context or `.ai/<name>/` progress file, (3) single clarification question, (4) default to `senior`.
+5. **Explicit Stage Resolution:** Resolve project stage for junior developers in priority order: (1) CLI argument, (2) repository signals (commit history depth, domain docs, code maturity), (3) clarification question.
+6. **Structured Output Delegation:** Delegate senior onboarding to `references/senior-briefing.md` and junior onboarding to `references/modo-profesor.md`.
+7. **Language Matching:** Maintain skill instructions in English, but output all user-facing content (briefings, mentor dialogue, questions) in the user's active conversation language.
 
-```
-/onboarding [stage] [level]
-```
+## Decision Gates
 
-- `stage`: `new` | `in-progress` (optional)
-- `level`: `junior` | `senior` (optional)
+| Situation | Action |
+| --- | --- |
+| AI-instructions file exists (`CLAUDE.md`, `AI.md`, etc.) | Read and defer to its philosophy and conventions |
+| AI-instructions file missing | Scan repo for non-obvious rules, gotchas, and build minimal context |
+| Domain-context folder/doc exists (`docs/context/`, etc.) | Reference external doc; do not duplicate domain text |
+| Domain-context doc missing | Ask user/PO for domain summary; do not infer domain from code |
+| Target audience is Senior (`level = senior`) | Apply `references/senior-briefing.md` (stage choice ignored) |
+| Target audience is Junior (`level = junior`) | Apply `references/modo-profesor.md` (branches on `stage`) |
 
-Examples: `/onboarding`, `/onboarding junior`, `/onboarding new junior`, `/onboarding in-progress senior`.
+## Execution Steps
 
-## Step 0 — Detect an existing AI-instructions file
+1. **Parse Arguments & Context:** Extract `stage` (`new` | `in-progress`) and `level` (`junior` | `senior`) from command `/onboarding [stage] [level]` or prompt text.
+2. **Inspect Existing Instructions:** Scan root for `CLAUDE.md`, `AI.md`, `AGENTS.md`, `core.md`, `.cursorrules`. Extract architectural rules and non-obvious gotchas.
+3. **Inspect Business Domain:** Check for `docs/context/`, `docs/domain/`, or README links. If missing, prompt for domain overview if required.
+4. **Resolve Level & Stage:** Apply priority rules to determine developer level and project stage.
+5. **Generate Briefing Output:** Produce senior briefing via `references/senior-briefing.md` or junior mentor guidance via `references/modo-profesor.md`.
 
-Look for `CLAUDE.md`, `AI.md`, `AGENTS.md`, `core.md`, `.cursorrules`, or similar at the project root.
+## Output Contract
 
-- **Found** → read it. Respect its stated philosophy (e.g. "keep this minimal, the code is the documentation"). Use it as your source for architecture/commands/conventions instead of re-scanning and regenerating that content.
-- **Not found** → scan the repo yourself (package manager files, test framework, lint config, folder structure, routing pattern) and build a minimal equivalent. Keep it to what the code does not already make obvious: non-obvious architectural decisions, gotchas, team-specific rules (PR conventions, reviewer defaults, naming rules).
+Return:
+- Structured onboarding briefing or mentor dialogue matching the resolved level and stage.
+- Explicit references to existing project instruction files and domain documentation.
+- Non-obvious architectural patterns, command references, and gotchas not evident from single-file reads.
 
-## Step 1 — Detect domain/business context
+## References
 
-Look for a domain-context folder or doc (e.g. `docs/context/`, `docs/domain/`, a wiki link in the README).
-
-- **Found** → reference it, don't summarize or duplicate it into your own output.
-- **Not found** → don't infer the business domain from code alone. Ask the user (or point out that a PO/team member should provide it) for a short domain summary, or proceed without it if the person only needs technical onboarding.
-
-## Step 2 — Resolve the level gate (junior | senior)
-
-Resolve in this order, stopping at the first that resolves:
-1. Explicit `level` param.
-2. If you already have context on who this person is (prior sessions, a progress file under `.ai/<name>/`, something the user told you this session) → infer from that.
-3. Ask once: "¿Con qué nivel de experiencia arranca — junior o senior?"
-4. If still unresolved → default to **senior**.
-
-## Step 3 — Resolve the stage gate (new | in-progress) — only matters if level = junior
-
-Senior mode doesn't branch on project maturity — a senior gets a briefing either way, just shorter if there's less to brief. Junior mode does branch, because it changes what the mentor can point to.
-
-Resolve in this order:
-1. Explicit `stage` param.
-2. Infer from repo signals: commit count/history depth, whether `docs/context/` (or equivalent) has real content, whether there are existing features in the same domain the newcomer's first task touches. Low signal on all of these → `new`. Established code and conventions → `in-progress`.
-3. If ambiguous → ask: "¿El proyecto ya tiene features/convenciones establecidas, o está recién arrancando?"
-
-## Step 4 — Generate the right output
-
-- **Senior** (any stage) → follow `references/senior-briefing.md`.
-- **Junior** → follow `references/modo-profesor.md`. It branches internally on `stage`.
-
-## Language
-
-Write this file's own instructions in English for model comprehension, but all output shown to the user (the briefing, the mentor dialogue, questions) must be in the user's language.
+- `references/senior-briefing.md` — Detailed structure and guidelines for Senior/SSR onboarding briefings.
+- `references/modo-profesor.md` — Pedagogical framework, teaching rules, and escalation ladder for Junior onboarding.
