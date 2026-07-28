@@ -1,23 +1,47 @@
 #!/usr/bin/env bash
-# us-refinement Auto-Updater for macOS and Linux
+# hjagar-skills Auto-Updater for macOS and Linux
 set -euo pipefail
 
-CENTRAL_DIR="$HOME/.hjagar/skills/us-refinement"
-LOCAL_SKILL="$CENTRAL_DIR/SKILL.md"
+SKILL_NAME=""
+
+while [[ "$#" -gt 0 ]]; do
+    case $1 in
+        --skill) SKILL_NAME="$2"; shift ;;
+        *) echo "Unknown parameter: $1"; exit 1 ;;
+    esac
+    shift
+done
+
+CENTRAL_DIR="$HOME/.hjagar/skills"
 REPO="hjagar/us-refinement"
 
 echo "Checking for updates..."
 
-# 1. Read local version
-if [ ! -f "$LOCAL_SKILL" ]; then
-    echo "Error: us-refinement is not installed globally at $CENTRAL_DIR. Run install.sh first." >&2
+# 1. Locate reference SKILL.md to check local version
+CHECK_SKILL_FILE=""
+if [ -n "$SKILL_NAME" ]; then
+    if [ -f "$CENTRAL_DIR/skills/$SKILL_NAME/SKILL.md" ]; then
+        CHECK_SKILL_FILE="$CENTRAL_DIR/skills/$SKILL_NAME/SKILL.md"
+    elif [ -f "$CENTRAL_DIR/SKILL.md" ]; then
+        CHECK_SKILL_FILE="$CENTRAL_DIR/SKILL.md"
+    fi
+else
+    if [ -f "$CENTRAL_DIR/skills/us-refinement/SKILL.md" ]; then
+        CHECK_SKILL_FILE="$CENTRAL_DIR/skills/us-refinement/SKILL.md"
+    elif [ -f "$CENTRAL_DIR/SKILL.md" ]; then
+        CHECK_SKILL_FILE="$CENTRAL_DIR/SKILL.md"
+    fi
+fi
+
+if [ -z "$CHECK_SKILL_FILE" ] || [ ! -f "$CHECK_SKILL_FILE" ]; then
+    echo "Error: skills are not installed globally at $CENTRAL_DIR. Run install.sh first." >&2
     exit 1
 fi
 
-frontmatter=$(awk '/^---[[:space:]]*\r?$/{c++; if (c==2) {print buf; exit}; next} c==1 {buf = buf $0 ORS}' "$LOCAL_SKILL")
+frontmatter=$(awk '/^---[[:space:]]*\r?$/{c++; if (c==2) {print buf; exit}; next} c==1 {buf = buf $0 ORS}' "$CHECK_SKILL_FILE")
 local_version=$(printf '%s\n' "$frontmatter" | grep -oE '^[[:space:]]*version:[[:space:]]*v[0-9.]+' | sed -E 's/^[[:space:]]*version:[[:space:]]*//' | head -n1 || true)
 if [ -z "$local_version" ]; then
-    local_version=$(grep -oE '<!-- version: v[0-9.]* -->' "$LOCAL_SKILL" | sed -E 's/<!-- version: (v[0-9.]*) -->/\1/' || true)
+    local_version=$(grep -oE '<!-- version: v[0-9.]* -->' "$CHECK_SKILL_FILE" | sed -E 's/<!-- version: (v[0-9.]*) -->/\1/' || true)
 fi
 [ -z "$local_version" ] && local_version="v0.0.0"
 echo "Local version: $local_version"
@@ -63,52 +87,60 @@ if ! unzip -o "$TEMP_ZIP" -d "$TEMP_EXTRACT_DIR" &>/dev/null; then
     exit 1
 fi
 
-# Validate the extracted archive is complete BEFORE clearing any existing central-store
-# content below - update.sh now depends on lib/ to even finish (it sources
-# lib/skill-payload.sh from the central store further down), so a truncated/incomplete
-# archive must abort here instead of wiping a working install with no way back.
-for required in SKILL.md scripts tests lib; do
-    if [ ! -e "$TEMP_EXTRACT_DIR/$required" ]; then
-        echo "Error: downloaded release archive is missing '$required' - aborting before touching the existing installation at $CENTRAL_DIR." >&2
-        exit 1
-    fi
-done
-
 echo "Updating central files..."
-# Clear stale central-store dirs first: a plain merge-copy below would leave behind
-# files removed/renamed in the new release, and those orphans would then be
-# re-propagated to every agent path.
-for dir in scripts tests lib; do
-    rm -rf "${CENTRAL_DIR:?}/$dir"
-done
 cp -R "$TEMP_EXTRACT_DIR"/. "$CENTRAL_DIR/"
 
-# build_agent_paths, copy_skill_file, and new_kiro_steering_file live in
-# lib/skill-payload.sh (shared with install.sh). It was just refreshed into
-# $CENTRAL_DIR above alongside scripts/ and tests/, so source the refreshed copy.
-# shellcheck source=lib/skill-payload.sh
-source "$CENTRAL_DIR/lib/skill-payload.sh"
+PAYLOAD_LIB=""
+if [ -f "$CENTRAL_DIR/lib/skill-payload.sh" ]; then
+    PAYLOAD_LIB="$CENTRAL_DIR/lib/skill-payload.sh"
+elif [ -f "$CENTRAL_DIR/cli/lib/skill-payload.sh" ]; then
+    PAYLOAD_LIB="$CENTRAL_DIR/cli/lib/skill-payload.sh"
+fi
 
-# 5. Propagate SKILL.md + scripts/ + tests/ to all agents
-echo "Updating agents..."
-build_agent_paths
+if [ -n "$PAYLOAD_LIB" ]; then
+    # shellcheck disable=SC1090,SC1091
+    source "$PAYLOAD_LIB"
+else
+    echo "Error: lib/skill-payload.sh not found in central dir" >&2
+    exit 1
+fi
 
-for agent in "${AGENT_PATHS[@]}"; do
-    if [ -d "$agent" ] || [ -f "$agent" ]; then
-        copy_skill_file "$agent" "$CENTRAL_DIR"
-        echo "Updated agent skill path: $agent"
+# 5. Propagate to agents
+skills=()
+if [ -n "$SKILL_NAME" ]; then
+    skills+=("$SKILL_NAME")
+else
+    if [ -d "$CENTRAL_DIR/skills" ]; then
+        for sdir in "$CENTRAL_DIR/skills"/*; do
+            if [ -d "$sdir" ] && [ -f "$sdir/SKILL.md" ]; then
+                skills+=("$(basename "$sdir")")
+            fi
+        done
+    elif [ -f "$CENTRAL_DIR/SKILL.md" ]; then
+        skills+=("$(basename "$CENTRAL_DIR")")
+    fi
+fi
+
+for sk in "${skills[@]}"; do
+    sk_src="$CENTRAL_DIR/skills/$sk"
+    if [ ! -d "$sk_src" ] && [ -f "$CENTRAL_DIR/SKILL.md" ]; then
+        sk_src="$CENTRAL_DIR"
+    fi
+
+    echo "Updating agent paths for skill '$sk'..."
+    build_agent_paths "$sk"
+    for agent in "${AGENT_PATHS[@]}"; do
+        if [ -d "$agent" ] || [ -f "$agent" ]; then
+            copy_skill_file "$agent" "$sk_src"
+            echo "Updated agent skill path: $agent"
+        fi
+    done
+
+    KIRO_TARGET="$HOME/.kiro/steering/$sk.md"
+    if [ -f "$KIRO_TARGET" ]; then
+        new_kiro_steering_file "$sk_src" "$sk"
+        echo "Updated agent skill path: $KIRO_TARGET"
     fi
 done
-
-# Kiro is a special case: a single generated steering file at
-# ~/.kiro/steering/us-refinement.md (SKILL.md's frontmatter with `inclusion: always`
-# injected), not a folder+SKILL.md copy - no scripts/ or tests/ payload. Only
-# regenerate it if it already exists - update.sh never opts a machine into a new agent,
-# only refreshes agents already installed.
-KIRO_TARGET="$HOME/.kiro/steering/us-refinement.md"
-if [ -f "$KIRO_TARGET" ]; then
-    new_kiro_steering_file "$CENTRAL_DIR"
-    echo "Updated agent skill path: $KIRO_TARGET"
-fi
 
 echo "Update completed successfully to version $latest_version!"

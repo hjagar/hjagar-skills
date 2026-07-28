@@ -1,7 +1,8 @@
 [CmdletBinding()]
 param(
     [switch]$Local,
-    [string]$Path
+    [string]$Path,
+    [string]$Skill
 )
 
 $ErrorActionPreference = "Stop"
@@ -18,26 +19,77 @@ if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
 
 # 2. Path Setup
 $HomeDir = $env:USERPROFILE
-$CentralDir = Join-Path $HomeDir ".hjagar\skills\us-refinement"
-$SrcDir = if ($Path) { Resolve-Path $Path } else { $PSScriptRoot }
+$CentralDir = Join-Path $HomeDir ".hjagar\skills"
+
+$BaseDir = if ($Path) { Resolve-Path $Path } else {
+    if (Test-Path (Join-Path $PSScriptRoot "..\skills")) {
+        Resolve-Path (Join-Path $PSScriptRoot "..")
+    } else {
+        $PSScriptRoot
+    }
+}
+
+function Install-Skills ($payloadLibDir, $baseSourceDir) {
+    $payloadLib = Join-Path $payloadLibDir "lib\skill-payload.ps1"
+    if (-not (Test-Path $payloadLib)) {
+        $payloadLib = Join-Path $payloadLibDir "cli\lib\skill-payload.ps1"
+    }
+    if (-not (Test-Path $payloadLib)) {
+        Write-Error "Error: lib\skill-payload.ps1 not found at $payloadLibDir"
+        exit 1
+    }
+    . $payloadLib
+
+    $skillsToInstall = @()
+    $skillsDir = Join-Path $baseSourceDir "skills"
+
+    if ($Skill) {
+        $targetSkillDir = Join-Path $skillsDir $Skill
+        if (Test-Path (Join-Path $targetSkillDir "SKILL.md")) {
+            $skillsToInstall += @{ Name = $Skill; Source = $targetSkillDir }
+        } elseif (Test-Path (Join-Path $baseSourceDir "SKILL.md")) {
+            $skillsToInstall += @{ Name = $Skill; Source = $baseSourceDir }
+        } else {
+            Write-Error "Error: Skill '$Skill' not found at $targetSkillDir"
+            exit 1
+        }
+    } else {
+        if (Test-Path $skillsDir) {
+            Get-ChildItem -Path $skillsDir -Directory | ForEach-Object {
+                if (Test-Path (Join-Path $_.FullName "SKILL.md")) {
+                    $skillsToInstall += @{ Name = $_.Name; Source = $_.FullName }
+                }
+            }
+        } elseif (Test-Path (Join-Path $baseSourceDir "SKILL.md")) {
+            $skillName = Split-Path -Leaf $baseSourceDir
+            $skillsToInstall += @{ Name = $skillName; Source = $baseSourceDir }
+        }
+    }
+
+    if ($skillsToInstall.Count -eq 0) {
+        Write-Error "Error: No valid skills found to install."
+        exit 1
+    }
+
+    foreach ($item in $skillsToInstall) {
+        $sName = $item.Name
+        $sSource = $item.Source
+        Write-Host "Installing skill '$sName'..." -ForegroundColor Cyan
+
+        $agentPaths = Get-AgentPaths $sName
+        foreach ($agent in $agentPaths) {
+            Copy-SkillFile $agent $sSource
+        }
+        New-KiroSteeringFile $sSource $sName
+    }
+}
 
 # 3. Installation Logic
-# Copy-SkillFile, New-KiroSteeringFile, and Get-AgentPaths live in lib/skill-payload.ps1
-# (shared with update.ps1). Local mode dot-sources it straight from $SrcDir - a real
-# checkout, always present on disk. Global mode can only dot-source it from $CentralDir
-# AFTER the release ZIP has been downloaded and extracted there below, since install.ps1
-# ships as a single self-contained file for the `irm <url> | iex` distribution path and
-# has no sibling files available before that point.
 if ($Local) {
-    Write-Host "Installing us-refinement in LOCAL Mode..."
-    . (Join-Path $SrcDir "lib\skill-payload.ps1")
-    $AgentPaths = Get-AgentPaths
-    foreach ($agent in $AgentPaths) {
-        Copy-SkillFile $agent $SrcDir
-    }
-    New-KiroSteeringFile $SrcDir
+    Write-Host "Installing in LOCAL Mode..."
+    Install-Skills $BaseDir $BaseDir
 } else {
-    Write-Host "Installing us-refinement in GLOBAL Mode..."
+    Write-Host "Installing in GLOBAL Mode..."
     if (Test-Path $CentralDir) {
         Remove-Item -Path $CentralDir -Recurse -Force
     }
@@ -84,14 +136,7 @@ if ($Local) {
         if (Test-Path $tempZip) { Remove-Item $tempZip -Force }
     }
     
-    # Only now does $CentralDir physically contain lib/skill-payload.ps1 - dot-source it
-    # from there, never before the extraction above.
-    . (Join-Path $CentralDir "lib\skill-payload.ps1")
-    $AgentPaths = Get-AgentPaths
-    foreach ($agent in $AgentPaths) {
-        Copy-SkillFile $agent $CentralDir
-    }
-    New-KiroSteeringFile $CentralDir
+    Install-Skills $CentralDir $CentralDir
 }
 
 Write-Host "Installation completed successfully!"

@@ -1,19 +1,40 @@
-# us-refinement Auto-Updater for Windows
+# hjagar-skills Auto-Updater for Windows
+[CmdletBinding()]
+param(
+    [string]$Skill
+)
+
 $ErrorActionPreference = "Stop"
 
 $HomeDir = $env:USERPROFILE
-$CentralDir = Join-Path $HomeDir ".hjagar\skills\us-refinement"
-$LocalSkill = Join-Path $CentralDir "SKILL.md"
+$CentralDir = Join-Path $HomeDir ".hjagar\skills"
 
 Write-Host "Checking for updates..." -ForegroundColor Cyan
 
-# 1. Read local version
-if (-not (Test-Path $LocalSkill)) {
-    Write-Error "Error: us-refinement is not installed globally at $CentralDir. Run install.ps1 first."
+# 1. Locate reference SKILL.md to check local version
+$checkSkillFile = $null
+if ($Skill) {
+    $targetFile = Join-Path $CentralDir "skills\$Skill\SKILL.md"
+    if (Test-Path $targetFile) {
+        $checkSkillFile = $targetFile
+    } elseif (Test-Path (Join-Path $CentralDir "SKILL.md")) {
+        $checkSkillFile = Join-Path $CentralDir "SKILL.md"
+    }
+} else {
+    $targetFile = Join-Path $CentralDir "skills\us-refinement\SKILL.md"
+    if (Test-Path $targetFile) {
+        $checkSkillFile = $targetFile
+    } elseif (Test-Path (Join-Path $CentralDir "SKILL.md")) {
+        $checkSkillFile = Join-Path $CentralDir "SKILL.md"
+    }
+}
+
+if (-not $checkSkillFile -or -not (Test-Path $checkSkillFile)) {
+    Write-Error "Error: skills are not installed globally at $CentralDir. Run install.ps1 first."
     exit 1
 }
 
-$localContent = Get-Content $LocalSkill -Raw
+$localContent = Get-Content $checkSkillFile -Raw
 $localVersion = "v0.0.0"
 $fm = [regex]::Match($localContent, '(?s)\A---\r?\n(.*?)\r?\n---')
 if ($fm.Success -and $fm.Groups[1].Value -match '(?m)^\s*version:\s*(v[\d\.]+)\s*$') {
@@ -30,7 +51,6 @@ $apiUrl = "https://api.github.com/repos/$repo/releases/latest"
 $latestVersion = $null
 
 try {
-    # Skip basic parsing issues
     $release = Invoke-RestMethod -Uri $apiUrl -UseBasicParsing
     $latestVersion = $release.tag_name
 } catch {
@@ -68,57 +88,61 @@ try {
     Write-Host "Extracting archive..." -ForegroundColor Gray
     Expand-Archive -Path $tempZip -DestinationPath $tempExtractDir -Force
 
-    # Validate the extracted archive is complete BEFORE clearing any existing central-store
-    # content below - update.ps1 now depends on lib/ to even finish (it dot-sources
-    # lib/skill-payload.ps1 from the central store further down), so a truncated/incomplete
-    # archive must abort here instead of wiping a working install with no way back.
-    foreach ($required in @("SKILL.md", "scripts", "tests", "lib")) {
-        $requiredPath = Join-Path $tempExtractDir $required
-        if (-not (Test-Path $requiredPath)) {
-            Write-Error "Error: downloaded release archive is missing '$required' - aborting before touching the existing installation at $CentralDir."
-            exit 1
-        }
-    }
-
-    # Safely overwrite central files (pisin' individual files to prevent locking on script itself)
     Write-Host "Updating central files..." -ForegroundColor Gray
-    foreach ($dir in @("scripts", "tests", "lib")) {
-        # Clear stale central-store dirs first: a plain merge-copy below would leave behind
-        # files removed/renamed in the new release, and those orphans would then be
-        # re-propagated to every agent path.
-        $centralSubdir = Join-Path $CentralDir $dir
-        if (Test-Path $centralSubdir) { Remove-Item -Path $centralSubdir -Force -Recurse }
-    }
     Get-ChildItem -Path $tempExtractDir -Force | ForEach-Object {
         $destPath = Join-Path $CentralDir $_.Name
         Copy-Item -Path $_.FullName -Destination $destPath -Force -Recurse
     }
 
-    # Copy-SkillFile, New-KiroSteeringFile, and Get-AgentPaths live in
-    # lib/skill-payload.ps1 (shared with install.ps1). It was just refreshed into
-    # $CentralDir above alongside scripts/ and tests/, so dot-source the refreshed copy.
-    . (Join-Path $CentralDir "lib\skill-payload.ps1")
+    $payloadLib = Join-Path $CentralDir "lib\skill-payload.ps1"
+    if (-not (Test-Path $payloadLib)) {
+        $payloadLib = Join-Path $CentralDir "cli\lib\skill-payload.ps1"
+    }
+    if (Test-Path $payloadLib) {
+        . $payloadLib
+    } else {
+        Write-Error "Error: lib\skill-payload.ps1 not found in $CentralDir"
+        exit 1
+    }
 
-    # 5. Propagate SKILL.md + scripts/ + tests/ to all agents
-    Write-Host "Updating agents..." -ForegroundColor Gray
-    $AgentPaths = Get-AgentPaths
-
-    foreach ($agent in $AgentPaths) {
-        if (Test-Path $agent) {
-            Copy-SkillFile $agent $CentralDir
-            Write-Host "Updated agent skill path: $agent" -ForegroundColor Green
+    # 5. Propagate skills to agents
+    $skillsToUpdate = @()
+    if ($Skill) {
+        $skillsToUpdate += $Skill
+    } else {
+        $skillsDir = Join-Path $CentralDir "skills"
+        if (Test-Path $skillsDir) {
+            Get-ChildItem -Path $skillsDir -Directory | ForEach-Object {
+                if (Test-Path (Join-Path $_.FullName "SKILL.md")) {
+                    $skillsToUpdate += $_.Name
+                }
+            }
+        } elseif (Test-Path (Join-Path $CentralDir "SKILL.md")) {
+            $skillsToUpdate += "us-refinement"
         }
     }
 
-    # Kiro is a special case: a single generated steering file at
-    # ~/.kiro/steering/us-refinement.md (SKILL.md's frontmatter with `inclusion: always`
-    # injected), not a folder+SKILL.md copy - no scripts/ or tests/ payload. Only
-    # regenerate it if it already exists - update.ps1 never opts a machine into a new
-    # agent, only refreshes agents already installed.
-    $kiroTarget = Join-Path $HomeDir ".kiro\steering\us-refinement.md"
-    if (Test-Path $kiroTarget) {
-        New-KiroSteeringFile $CentralDir
-        Write-Host "Updated agent skill path: $kiroTarget" -ForegroundColor Green
+    foreach ($sk in $skillsToUpdate) {
+        $skSource = Join-Path $CentralDir "skills\$sk"
+        if (-not (Test-Path $skSource) -and (Test-Path (Join-Path $CentralDir "SKILL.md"))) {
+            $skSource = $CentralDir
+        }
+
+        Write-Host "Updating agent paths for skill '$sk'..." -ForegroundColor Gray
+        $agentPaths = Get-AgentPaths $sk
+
+        foreach ($agent in $agentPaths) {
+            if (Test-Path $agent) {
+                Copy-SkillFile $agent $skSource
+                Write-Host "Updated agent skill path: $agent" -ForegroundColor Green
+            }
+        }
+
+        $kiroTarget = Join-Path $HomeDir ".kiro\steering\$sk.md"
+        if (Test-Path $kiroTarget) {
+            New-KiroSteeringFile $skSource $sk
+            Write-Host "Updated agent skill path: $kiroTarget" -ForegroundColor Green
+        }
     }
 
     Write-Host "Update completed successfully to version $latestVersion!" -ForegroundColor Green
@@ -128,7 +152,6 @@ catch {
     exit 1
 }
 finally {
-    # Cleanup temp resources
     if (Test-Path $tempZip) { Remove-Item $tempZip -Force }
     if (Test-Path $tempExtractDir) { Remove-Item $tempExtractDir -Recurse -Force }
 }
