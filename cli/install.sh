@@ -45,8 +45,10 @@ install_skills() {
     local base_src="$2"
 
     if [ -f "$payload_src/lib/skill-payload.sh" ]; then
+        # shellcheck disable=SC1091
         source "$payload_src/lib/skill-payload.sh"
     elif [ -f "$payload_src/cli/lib/skill-payload.sh" ]; then
+        # shellcheck disable=SC1091
         source "$payload_src/cli/lib/skill-payload.sh"
     else
         echo "Error: lib/skill-payload.sh not found at $payload_src" >&2

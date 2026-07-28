@@ -98,6 +98,7 @@ elif [ -f "$CENTRAL_DIR/cli/lib/skill-payload.sh" ]; then
 fi
 
 if [ -n "$PAYLOAD_LIB" ]; then
+    # shellcheck disable=SC1090,SC1091
     source "$PAYLOAD_LIB"
 else
     echo "Error: lib/skill-payload.sh not found in central dir" >&2
