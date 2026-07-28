@@ -25,25 +25,25 @@
 # the newly-downloaded release ZIP alongside scripts/ and tests/, then dot-sources the
 # refreshed copy.
 
-function Get-AgentPaths {
+function Get-AgentPaths ($skillName = "us-refinement") {
     $paths = [System.Collections.Generic.List[string]]::new()
-    $paths.Add((Join-Path $HomeDir ".gemini\skills\us-refinement"))
-    $paths.Add((Join-Path $HomeDir ".claude\skills\us-refinement"))
-    $paths.Add((Join-Path $HomeDir ".config\opencode\skills\us-refinement"))
-    $paths.Add((Join-Path $HomeDir ".copilot\skills\us-refinement"))
-    $paths.Add((Join-Path $HomeDir ".agents\skills\us-refinement"))
-    $paths.Add((Join-Path $HomeDir ".cursor\skills\us-refinement"))
+    $paths.Add((Join-Path $HomeDir ".gemini\skills\$skillName"))
+    $paths.Add((Join-Path $HomeDir ".claude\skills\$skillName"))
+    $paths.Add((Join-Path $HomeDir ".config\opencode\skills\$skillName"))
+    $paths.Add((Join-Path $HomeDir ".copilot\skills\$skillName"))
+    $paths.Add((Join-Path $HomeDir ".agents\skills\$skillName"))
+    $paths.Add((Join-Path $HomeDir ".cursor\skills\$skillName"))
 
     if (Test-Path $HomeDir) {
         Get-ChildItem -Path $HomeDir -Filter ".claude-*" -Directory -ErrorAction SilentlyContinue | ForEach-Object {
-            $paths.Add((Join-Path $_.FullName "skills\us-refinement"))
+            $paths.Add((Join-Path $_.FullName "skills\$skillName"))
         }
     }
 
     return $paths
 }
 
-# Payload Copy Helper (SKILL.md + scripts/ + tests/ — docs/ excluded on purpose)
+# Payload Copy Helper (SKILL.md + scripts/ + tests/ + assets/ + references/ + examples/)
 # Stages the payload in a sibling ".staging" dir and swaps it into place only after every
 # copy succeeds, so a mid-copy failure leaves the existing installed payload untouched.
 function Copy-SkillFile ($targetPath, $sourcePath) {
@@ -63,13 +63,11 @@ function Copy-SkillFile ($targetPath, $sourcePath) {
         exit 1
     }
 
-    foreach ($dir in @("scripts", "tests", "assets", "references")) {
+    foreach ($dir in @("scripts", "tests", "assets", "references", "examples")) {
         $srcDir = Join-Path $sourcePath $dir
         if (Test-Path $srcDir) {
             Write-Host "Copying $dir/ to: $targetPath"
             Copy-Item -Path $srcDir -Destination $stagingPath -Recurse -Force
-        } else {
-            Write-Warning "Warning: $dir/ not found at $sourcePath - skipping."
         }
     }
 
@@ -81,13 +79,16 @@ function Copy-SkillFile ($targetPath, $sourcePath) {
 
 # Kiro Steering File Helper
 # Kiro does not use the folder+SKILL.md format other agents use: it reads a single flat
-# steering file at ~/.kiro/steering/us-refinement.md with `inclusion: always` injected as
+# steering file at ~/.kiro/steering/<skill-name>.md with `inclusion: always` injected as
 # the first key inside SKILL.md's YAML frontmatter. No scripts/ or tests/ payload - steering
 # files are plain markdown only. Stages then swaps into place for the same atomicity
 # guarantee as Copy-SkillFile.
-function New-KiroSteeringFile ($sourcePath) {
+function New-KiroSteeringFile ($sourcePath, $skillName) {
+    if (-not $skillName) {
+        $skillName = Split-Path -Leaf $sourcePath
+    }
     $steeringDir = Join-Path $HomeDir ".kiro\steering"
-    $targetFile = Join-Path $steeringDir "us-refinement.md"
+    $targetFile = Join-Path $steeringDir "$skillName.md"
     $stagingFile = "$targetFile.staging"
 
     $srcFile = Join-Path $sourcePath "SKILL.md"

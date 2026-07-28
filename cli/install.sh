@@ -3,12 +3,14 @@ set -e
 
 LOCAL=false
 SRC_DIR=""
+SKILL_NAME=""
 
 # Parse arguments
 while [[ "$#" -gt 0 ]]; do
     case $1 in
         -l|--local) LOCAL=true ;;
         -p|--path) SRC_DIR="$2"; shift ;;
+        --skill) SKILL_NAME="$2"; shift ;;
         *) echo "Unknown parameter: $1"; exit 1 ;;
     esac
     shift
@@ -25,30 +27,80 @@ if ! command -v gh &> /dev/null; then
 fi
 
 # 2. Path Setup
-CENTRAL_DIR="$HOME/.hjagar/skills/us-refinement"
+CENTRAL_DIR="$HOME/.hjagar/skills"
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 if [ -z "$SRC_DIR" ]; then
-    SRC_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+    if [ -d "$SCRIPT_DIR/../skills" ]; then
+        BASE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+    else
+        BASE_DIR="$SCRIPT_DIR"
+    fi
+else
+    BASE_DIR="$SRC_DIR"
 fi
 
-# 3. Installation Logic
-# build_agent_paths, copy_skill_file, and new_kiro_steering_file live in
-# lib/skill-payload.sh (shared with update.sh). Local mode sources it straight from
-# $SRC_DIR - a real checkout, always present on disk. Global mode can only source it from
-# $CENTRAL_DIR AFTER the release ZIP has been downloaded and extracted there below, since
-# install.sh ships as a single self-contained file for the `curl <url> | bash`
-# distribution path and has no sibling files available before that point.
-if [ "$LOCAL" = true ]; then
-    echo "Installing us-refinement in LOCAL Mode..."
-    # shellcheck source=lib/skill-payload.sh
-    source "$SRC_DIR/lib/skill-payload.sh"
-    build_agent_paths
-    for agent in "${AGENT_PATHS[@]}"; do
-        copy_skill_file "$agent" "$SRC_DIR"
+install_skills() {
+    local payload_src="$1"
+    local base_src="$2"
+
+    if [ -f "$payload_src/lib/skill-payload.sh" ]; then
+        source "$payload_src/lib/skill-payload.sh"
+    elif [ -f "$payload_src/cli/lib/skill-payload.sh" ]; then
+        source "$payload_src/cli/lib/skill-payload.sh"
+    else
+        echo "Error: lib/skill-payload.sh not found at $payload_src" >&2
+        exit 1
+    fi
+
+    local skills=()
+    if [ -n "$SKILL_NAME" ]; then
+        if [ -d "$base_src/skills/$SKILL_NAME" ] && [ -f "$base_src/skills/$SKILL_NAME/SKILL.md" ]; then
+            skills+=("$SKILL_NAME")
+        elif [ -f "$base_src/SKILL.md" ]; then
+            skills+=("$(basename "$base_src")")
+        else
+            echo "Error: Skill '$SKILL_NAME' not found in $base_src" >&2
+            exit 1
+        fi
+    else
+        if [ -d "$base_src/skills" ]; then
+            for sdir in "$base_src/skills"/*; do
+                if [ -d "$sdir" ] && [ -f "$sdir/SKILL.md" ]; then
+                    skills+=("$(basename "$sdir")")
+                fi
+            done
+        elif [ -f "$base_src/SKILL.md" ]; then
+            skills+=("$(basename "$base_src")")
+        fi
+    fi
+
+    if [ ${#skills[@]} -eq 0 ]; then
+        echo "Error: No valid skills found to install." >&2
+        exit 1
+    fi
+
+    for sk in "${skills[@]}"; do
+        local sk_dir="$base_src/skills/$sk"
+        if [ ! -d "$sk_dir" ] && [ -f "$base_src/SKILL.md" ]; then
+            sk_dir="$base_src"
+        fi
+
+        echo "Installing skill '$sk'..."
+        build_agent_paths "$sk"
+        for agent in "${AGENT_PATHS[@]}"; do
+            copy_skill_file "$agent" "$sk_dir"
+        done
+        new_kiro_steering_file "$sk_dir" "$sk"
     done
-    new_kiro_steering_file "$SRC_DIR"
+}
+
+# 3. Installation Logic
+if [ "$LOCAL" = true ]; then
+    echo "Installing in LOCAL Mode..."
+    install_skills "$BASE_DIR" "$BASE_DIR"
 else
-    echo "Installing us-refinement in GLOBAL Mode..."
+    echo "Installing in GLOBAL Mode..."
     rm -rf "$CENTRAL_DIR"
     mkdir -p "$CENTRAL_DIR"
     
@@ -99,15 +151,7 @@ else
     fi
     rm -f "$TEMP_ZIP"
 
-    # Only now does $CENTRAL_DIR physically contain lib/skill-payload.sh - source it from
-    # there, never before the extraction above.
-    # shellcheck source=lib/skill-payload.sh
-    source "$CENTRAL_DIR/lib/skill-payload.sh"
-    build_agent_paths
-    for agent in "${AGENT_PATHS[@]}"; do
-        copy_skill_file "$agent" "$CENTRAL_DIR"
-    done
-    new_kiro_steering_file "$CENTRAL_DIR"
+    install_skills "$CENTRAL_DIR" "$CENTRAL_DIR"
 fi
 
 echo "Installation completed successfully!"

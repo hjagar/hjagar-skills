@@ -28,24 +28,27 @@
 
 # Builds the AGENT_PATHS array (static entries + dynamic .claude-* multi-account
 # discovery). Requires $HOME to be set, which it always is.
+# Builds the AGENT_PATHS array (static entries + dynamic .claude-* multi-account
+# discovery). Requires $HOME to be set, which it always is.
 build_agent_paths() {
+    local skill_name="${1:-us-refinement}"
     AGENT_PATHS=(
-        "$HOME/.gemini/skills/us-refinement"
-        "$HOME/.claude/skills/us-refinement"
-        "$HOME/.config/opencode/skills/us-refinement"
-        "$HOME/.copilot/skills/us-refinement"
-        "$HOME/.agents/skills/us-refinement"
-        "$HOME/.cursor/skills/us-refinement"
+        "$HOME/.gemini/skills/$skill_name"
+        "$HOME/.claude/skills/$skill_name"
+        "$HOME/.config/opencode/skills/$skill_name"
+        "$HOME/.copilot/skills/$skill_name"
+        "$HOME/.agents/skills/$skill_name"
+        "$HOME/.cursor/skills/$skill_name"
     )
 
     for d in "$HOME"/.claude-*; do
         if [ -d "$d" ]; then
-            AGENT_PATHS+=("$d/skills/us-refinement")
+            AGENT_PATHS+=("$d/skills/$skill_name")
         fi
     done
 }
 
-# Payload Copy Helper (SKILL.md + scripts/ + tests/ - docs/ excluded on purpose)
+# Payload Copy Helper (SKILL.md + scripts/ + tests/ + assets/ + references/ + examples/)
 # Stages the payload in a sibling ".staging" dir and swaps it into place only after every
 # copy succeeds, so a mid-copy failure (caught by `set -e`) leaves the existing installed
 # payload untouched.
@@ -67,12 +70,10 @@ copy_skill_file() {
         exit 1
     fi
 
-    for dir in scripts tests assets references; do
+    for dir in scripts tests assets references examples; do
         if [ -d "$source/$dir" ]; then
             echo "Copying $dir/ to: $target"
             cp -r "$source/$dir" "$staging/"
-        else
-            echo "Warning: $dir/ not found at $source - skipping." >&2
         fi
     done
 
@@ -82,14 +83,18 @@ copy_skill_file() {
 
 # Kiro Steering File Helper
 # Kiro does not use the folder+SKILL.md format other agents use: it reads a single flat
-# steering file at ~/.kiro/steering/us-refinement.md with `inclusion: always` injected as
+# steering file at ~/.kiro/steering/<skill-name>.md with `inclusion: always` injected as
 # the first key inside SKILL.md's YAML frontmatter. No scripts/ or tests/ payload - steering
 # files are plain markdown only. Stages then swaps into place for the same atomicity
 # guarantee as copy_skill_file.
 new_kiro_steering_file() {
     local source="$1"
+    local skill_name="${2:-}"
+    if [ -z "$skill_name" ]; then
+        skill_name="$(basename "$source")"
+    fi
     local steering_dir="$HOME/.kiro/steering"
-    local target="$steering_dir/us-refinement.md"
+    local target="$steering_dir/$skill_name.md"
     local staging="${target}.staging"
     local src_file="$source/SKILL.md"
 
