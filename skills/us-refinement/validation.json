@@ -1,0 +1,12 @@
+{
+  "skill": "us-refinement",
+  "validator": "scripts/validate_refinement.py",
+  "fixtures": {
+    "valid": [
+      "tests/mock_valid_us.md"
+    ],
+    "invalid": [
+      "tests/mock_invalid_us.md"
+    ]
+  }
+}

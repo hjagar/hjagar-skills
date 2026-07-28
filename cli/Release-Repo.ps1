@@ -54,17 +54,11 @@ foreach ($file in $shFiles) {
 }
 Write-Host "  All shell scripts passed shellcheck." -ForegroundColor Green
 
-# Python validation tests
-Write-Host "  Running Python validation on mock_valid_us.md (expecting success)..." -ForegroundColor Gray
-python scripts/validate_refinement.py tests/mock_valid_us.md
-if ($LASTEXITCODE -ne 0) {
-    Write-Host "Validation failed on mock_valid_us.md. Aborting." -ForegroundColor Red
-    exit 1
-}
-Write-Host "  Running Python validation on mock_invalid_us.md (expecting failure)..." -ForegroundColor Gray
-python scripts/validate_refinement.py tests/mock_invalid_us.md 2>$null
-if ($LASTEXITCODE -eq 0) {
-    Write-Host "Validation unexpectedly succeeded on mock_invalid_us.md. Aborting." -ForegroundColor Red
+# Shared quality gate invocation
+. (Join-Path $repoRoot "cli/lib/quality-gate.ps1")
+$gateResult = Invoke-QualityGate -RepoRoot $repoRoot
+if (-not $gateResult) {
+    Write-Host "Shared quality gate failed. Aborting." -ForegroundColor Red
     exit 1
 }
 Write-Host "  All quality gate checks passed." -ForegroundColor Green
