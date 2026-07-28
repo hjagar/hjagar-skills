@@ -1,6 +1,6 @@
 # Guía de Migración, Limpieza y Mantenimiento de Repositorios Espejo (Mirror Repos)
 
-> **Propósito:** Documentar los pasos exactos para configurar la sincronización por CI, realizar la limpieza de elementos repetidos/legacy en los repositorios espejo individuales (`hjagar/req-discovery`, `hjagar/us-refinement`, `hjagar/res-onboarding`, `hjagar/tc-generator`) y establecer el modelo de gobernanza del monorepo `hjagar-skills`.
+> **Propósito:** Documentar los pasos exactos para configurar la sincronización por CI, realizar la limpieza de elementos repetidos/legacy en los repositorios espejo individuales (`hjagar/req-discovery`, `hjagar/us-refinement`, `hjagar/res-onboarding`, `hjagar/tc-generator`), establecer el modelo de gobernanza y definir la estrategia de releases y distribución del monorepo `hjagar-skills`.
 
 ---
 
@@ -11,6 +11,7 @@
 3. [Ejecución y Verificación de Sincronización Inicial](#3-ejecución-y-verificación-de-sincronización-inicial)
 4. [Aviso de Mirror Read-Only en los Repos Espejo](#4-aviso-de-mirror-read-only-en-los-repos-espejo)
 5. [Gobernanza y Redirección de Contribuciones](#5-gobernanza-y-redirección-de-contribuciones)
+6. [Estrategia de Releases y Distribución (Próximos Pasos)](#6-estrategia-de-releases-y-distribución-próximos-pasos)
 
 ---
 
@@ -86,3 +87,27 @@ Para evitar que los usuarios modifiquen los repositorios espejo por error, agreg
    - Desactivar la opción de **Issues** si el proyecto lo permite, o bien configurar un issue template redirigiendo a `hjagar/hjagar-skills/issues`.
 2. **Flujo Único de Trabajo:**
    Cualquier bugfix, mejora o nueva skill se desarrolla y aprueba mediante PRs exclusivamente en `hjagar-skills`. El CI se encarga de propagar los cambios automáticamente.
+
+---
+
+## 6. Estrategia de Releases y Distribución (Próximos Pasos)
+
+Dado que las skills se pueden instalar **de forma individual (`--skill <nombre>`)** o **todas juntas (`--all`)**, se establece una **Estrategia Doble de Releases**:
+
+### 🎯 1. Releases por Skill Individual (`<skill>-vX.Y.Z`)
+* **Cuándo se genera:** Cuando una skill específica recibe cambios o correcciones y requiere un salto de versión independiente.
+* **Comando:** 
+  - Bash: `./cli/Release-Repo.sh patch --skill us-refinement`
+  - PowerShell: `.\cli\Release-Repo.ps1 -ReleaseType minor -Skill req-discovery`
+* **Artefacto generado:** Git tag `<skill>-vX.Y.Z` y archivo `build/<skill>.zip`.
+* **Casos de uso:** Consumidores que solo instalan o actualizan una skill particular (`install.sh --skill us-refinement`).
+
+### 📦 2. Release Bundle del Monorepo (`vX.Y.Z` / `hjagar-skills-all.zip`)
+* **Cuándo se genera:** Cuando se realiza un release global del monorepo que agrupa la colección completa de skills probadas en conjunto.
+* **Artefacto generado:** Tag global `vX.Y.Z` (ej: `v1.0.0`) y asset `hjagar-skills-all.zip` conteniendo `skills/*`.
+* **Casos de uso:** Consumidores que instalan la suite completa mediante `install.sh --all` o `install.ps1 -All`. El instalador descarga `hjagar-skills-all.zip` en una única petición atómica y despliega todas las skills en 1 segundo.
+
+### 📌 Razones Técnicas para Mantener Releases
+1. **Version Pinning e Inmutabilidad:** Evita que cambios directos en `main` rompan setups de usuarios en producción.
+2. **Optimización de Ancho de Banda y Rendimiento:** Evita realizar *N* descargas por separado al instalar la suite completa.
+3. **Entornos Corporativos:** Facilita la descarga en entornos con proxies restringidos que bloquean consultas arbitrarias a `raw.githubusercontent.com`.
