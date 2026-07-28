@@ -1,7 +1,10 @@
 param(
-    [Parameter(Mandatory=$true)]
+    [Parameter(Mandatory=$false)]
     [ValidateSet('patch','minor','major')]
-    [string]$ReleaseType
+    [string]$ReleaseType,
+
+    [Parameter(Mandatory=$false)]
+    [string]$Skill
 )
 
 $ErrorActionPreference = "Stop"
@@ -12,8 +15,37 @@ $repoRoot = git rev-parse --show-toplevel
 if ($repoRoot) { $repoRoot = $repoRoot.Trim() }
 Set-Location $repoRoot
 
+if ([string]::IsNullOrWhiteSpace($Skill)) {
+    Write-Host "Available skills:" -ForegroundColor Yellow
+    $skills = Get-ChildItem -Path (Join-Path $repoRoot "skills") -Directory
+    foreach ($s in $skills) {
+        Write-Host "  - $($s.Name)" -ForegroundColor Yellow
+    }
+    $Skill = Read-Host "Skill to release"
+}
+
+$skillDir = Join-Path $repoRoot "skills/$Skill"
+$skillMd = Join-Path $skillDir "SKILL.md"
+
+if (-not (Test-Path $skillDir)) {
+    Write-Host "Error: Skill directory not found at $skillDir" -ForegroundColor Red
+    exit 1
+}
+if (-not (Test-Path $skillMd)) {
+    Write-Host "Error: SKILL.md not found at $skillMd" -ForegroundColor Red
+    exit 1
+}
+
+if ([string]::IsNullOrWhiteSpace($ReleaseType)) {
+    $ReleaseType = Read-Host "Release type (patch/minor/major)"
+}
+if ($ReleaseType -notin @('patch','minor','major')) {
+    Write-Host "Error: Release type must be patch, minor, or major." -ForegroundColor Red
+    exit 1
+}
+
 # [1/5] Quality gate
-Write-Host "[1/5] Quality gate..." -ForegroundColor Cyan
+Write-Host "[1/5] Quality gate for skill: $Skill..." -ForegroundColor Cyan
 
 # Safety pre-flight checks
 $currentBranch = git branch --show-current
@@ -42,52 +74,59 @@ if (-not (Get-Command gh -ErrorAction SilentlyContinue)) {
     exit 1
 }
 
-# Shellcheck loop (repo-root scripts + lib/, which now ships shared shell logic)
-$shFiles = @(Get-ChildItem -Path $repoRoot -Filter *.sh -File) + @(Get-ChildItem -Path (Join-Path $repoRoot "lib") -Filter *.sh -File -ErrorAction SilentlyContinue)
+# Shellcheck loop
+$shFiles = @(Get-ChildItem -Path $repoRoot -Filter *.sh -File) +
+           @(Get-ChildItem -Path (Join-Path $repoRoot "cli/lib") -Filter *.sh -File -ErrorAction SilentlyContinue) +
+           @(Get-ChildItem -Path (Join-Path $skillDir "scripts") -Filter *.sh -File -ErrorAction SilentlyContinue) +
+           @(Get-ChildItem -Path (Join-Path $skillDir "tests") -Filter *.sh -File -ErrorAction SilentlyContinue)
+
 foreach ($file in $shFiles) {
-    Write-Host "  checking $($file.Name)..." -ForegroundColor Gray
-    shellcheck -x $file.FullName
-    if ($LASTEXITCODE -ne 0) {
-        Write-Host "shellcheck failed on $($file.Name). Aborting." -ForegroundColor Red
-        exit 1
+    if (Test-Path $file.FullName) {
+        Write-Host "  checking $($file.Name)..." -ForegroundColor Gray
+        shellcheck -x $file.FullName
+        if ($LASTEXITCODE -ne 0) {
+            Write-Host "shellcheck failed on $($file.Name). Aborting." -ForegroundColor Red
+            exit 1
+        }
     }
 }
 Write-Host "  All shell scripts passed shellcheck." -ForegroundColor Green
 
-# Shared quality gate invocation
+# Shared quality gate invocation for single skill
 . (Join-Path $repoRoot "cli/lib/quality-gate.ps1")
-$gateResult = Invoke-QualityGate -RepoRoot $repoRoot
+$gateResult = Invoke-QualityGate -RepoRoot $repoRoot -TargetSkill $Skill
 if (-not $gateResult) {
-    Write-Host "Shared quality gate failed. Aborting." -ForegroundColor Red
+    Write-Host "Quality gate failed for $Skill. Aborting." -ForegroundColor Red
     exit 1
 }
 Write-Host "  All quality gate checks passed." -ForegroundColor Green
 
 # [2/5] Version bump
 Write-Host "[2/5] Version bump..." -ForegroundColor Cyan
-$lastTag = $null
-try {
-    $lastTag = git describe --tags --abbrev=0 2>$null
-    if ($lastTag) { $lastTag = $lastTag.Trim() }
-} catch {
-    $lastTag = $null
-}
-if ([string]::IsNullOrWhiteSpace($lastTag)) {
-    $nextVersion = "v1.0.0"
-    Write-Host "  No existing tags. Proposing first release $nextVersion." -ForegroundColor Yellow
-} else {
-    $parts = $lastTag.TrimStart('v').Split('.')
-    $major = [int]$parts[0]; $minor = [int]$parts[1]; $patch = [int]$parts[2]
-    switch ($ReleaseType) {
-        'major' { $major++; $minor = 0; $patch = 0 }
-        'minor' { $minor++; $patch = 0 }
-        'patch' { $patch++ }
+
+$content = Get-Content $skillMd -Raw
+$fmMatch = [regex]::Match($content, '(?s)\A---\r?\n(.*?)\r?\n---')
+$currentVer = "1.0.0"
+if ($fmMatch.Success) {
+    $verMatch = [regex]::Match($fmMatch.Groups[1].Value, 'version:\s*"?(?:v)?([0-9\.]+)"?')
+    if ($verMatch.Success) {
+        $currentVer = $verMatch.Groups[1].Value
     }
-    $nextVersion = "v$major.$minor.$patch"
-    Write-Host "  $lastTag -> $nextVersion ($ReleaseType)" -ForegroundColor Green
 }
 
-$confirm = Read-Host "Create release $nextVersion? (y/N)"
+$parts = $currentVer.Split('.')
+$major = [int]$parts[0]; $minor = [int]$parts[1]; $patch = [int]$parts[2]
+switch ($ReleaseType) {
+    'major' { $major++; $minor = 0; $patch = 0 }
+    'minor' { $minor++; $patch = 0 }
+    'patch' { $patch++ }
+}
+$nextVersion = "v$major.$minor.$patch"
+$tagName = "$Skill-$nextVersion"
+
+Write-Host "  $Skill: v$currentVer -> $nextVersion ($ReleaseType)" -ForegroundColor Green
+
+$confirm = Read-Host "Create release $tagName? (y/N)"
 if ($confirm -notin @('y','Y')) {
     Write-Host "Cancelled. Nothing was created." -ForegroundColor Gray
     exit 0
@@ -96,74 +135,44 @@ if ($confirm -notin @('y','Y')) {
 # [3/5] Package
 Write-Host "[3/5] Packaging..." -ForegroundColor Cyan
 
-# Bump metadata.version in the SKILL.md frontmatter, scoped to the
-# frontmatter block only (migrates the legacy <!-- version: vX.Y.Z -->
-# comment format the first time it encounters it)
-$workspaceSkill = Join-Path $repoRoot "SKILL.md"
-$content = Get-Content $workspaceSkill -Raw
-$fm = [regex]::Match($content, '(?s)\A---\r?\n(.*?)\r?\n---')
-if (-not $fm.Success) {
-    Write-Error "SKILL.md is missing a valid YAML frontmatter block."
-    exit 1
-}
-$frontmatter = $fm.Groups[1].Value
 $plainVersion = $nextVersion.TrimStart('v')
+$frontmatter = $fmMatch.Groups[1].Value
 if ($frontmatter -match '(?m)^(\s*version:\s*)"?v?[\d\.]+"?(\s*)$') {
     $newFrontmatter = [regex]::Replace($frontmatter, '(?m)^(\s*version:\s*)"?v?[\d\.]+"?(\s*)$', { param($m) $m.Groups[1].Value + '"' + $plainVersion + '"' + $m.Groups[2].Value })
 } else {
     $newFrontmatter = $frontmatter + "`r`nmetadata:`r`n  version: `"$plainVersion`""
 }
-$content = $content.Substring(0, $fm.Groups[1].Index) + $newFrontmatter + $content.Substring($fm.Groups[1].Index + $fm.Groups[1].Length)
+$content = $content.Substring(0, $fmMatch.Groups[1].Index) + $newFrontmatter + $content.Substring($fmMatch.Groups[1].Index + $fmMatch.Groups[1].Length)
 $content = $content -replace '\r?\n<!-- version: v[\d\.]+ -->\r?\n', "`r`n"
-Set-Content -Path $workspaceSkill -Value $content -NoNewline
+Set-Content -Path $skillMd -Value $content -NoNewline
 
-# Commit version bump to workspace git history
 Write-Host "  Creating version bump commit..." -ForegroundColor Gray
-git add SKILL.md
-git commit -m "chore(release): bump version to $nextVersion" | Out-Null
+git add $skillMd
+git commit -m "chore(release): bump $Skill version to $nextVersion" | Out-Null
 
 $buildDir = Join-Path $repoRoot 'build'
-$zipPath  = Join-Path $buildDir 'us-refinement.zip'
+$zipPath  = Join-Path $buildDir "$Skill.zip"
 if (Test-Path $buildDir) { Remove-Item $buildDir -Recurse -Force }
 New-Item -ItemType Directory -Path $buildDir | Out-Null
 
-# Copy source files to build directory
-Copy-Item -Path $workspaceSkill -Destination $buildDir
-Copy-Item -Path (Join-Path $repoRoot "us-refinement-uninstall.ps1") -Destination $buildDir
-Copy-Item -Path (Join-Path $repoRoot "us-refinement-uninstall.sh") -Destination $buildDir
-Copy-Item -Path (Join-Path $repoRoot "update.ps1") -Destination $buildDir
-Copy-Item -Path (Join-Path $repoRoot "update.sh") -Destination $buildDir
-Copy-Item -Path (Join-Path $repoRoot "scripts") -Destination $buildDir -Recurse
-Copy-Item -Path (Join-Path $repoRoot "tests") -Destination $buildDir -Recurse
-Copy-Item -Path (Join-Path $repoRoot "lib") -Destination $buildDir -Recurse
-
-$items = @(
-    (Join-Path $buildDir "SKILL.md"),
-    (Join-Path $buildDir "us-refinement-uninstall.ps1"),
-    (Join-Path $buildDir "us-refinement-uninstall.sh"),
-    (Join-Path $buildDir "update.ps1"),
-    (Join-Path $buildDir "update.sh"),
-    (Join-Path $buildDir "scripts"),
-    (Join-Path $buildDir "tests"),
-    (Join-Path $buildDir "lib")
-)
-Compress-Archive -Path $items -DestinationPath $zipPath -Force
-Write-Host "  Created build/us-refinement.zip" -ForegroundColor Green
+$skillItems = Get-ChildItem -Path $skillDir
+Compress-Archive -Path $skillItems.FullName -DestinationPath $zipPath -Force
+Write-Host "  Created build/$Skill.zip" -ForegroundColor Green
 
 # [4/5] Tag + push
 Write-Host "[4/5] Tag + push..." -ForegroundColor Cyan
-git tag -a $nextVersion -m "Release $nextVersion"
+git tag -a $tagName -m "Release $Skill $nextVersion"
 if ($LASTEXITCODE -ne 0) { Write-Host "git tag failed." -ForegroundColor Red; exit 1 }
 git push origin main --follow-tags
 if ($LASTEXITCODE -ne 0) { Write-Host "git push failed." -ForegroundColor Red; exit 1 }
-Write-Host "  Tagged and pushed $nextVersion." -ForegroundColor Green
+Write-Host "  Tagged and pushed $tagName." -ForegroundColor Green
 
 # [5/5] Publish + cleanup
 Write-Host "[5/5] Publishing GitHub release..." -ForegroundColor Cyan
-gh release create $nextVersion $zipPath --generate-notes
+gh release create $tagName $zipPath --title "$Skill $nextVersion" --generate-notes
 if ($LASTEXITCODE -ne 0) {
-    Write-Host "gh release create failed (check 'gh auth status'). Tag $nextVersion is already pushed - re-run after auth to reuse it." -ForegroundColor Red
+    Write-Host "gh release create failed (check 'gh auth status'). Tag $tagName is already pushed - re-run after auth to reuse it." -ForegroundColor Red
     exit 1
 }
 Remove-Item $buildDir -Recurse -Force
-Write-Host "`nDone. Release $nextVersion published." -ForegroundColor Green
+Write-Host "`nDone. Release $tagName published." -ForegroundColor Green
