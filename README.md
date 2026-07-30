@@ -26,7 +26,7 @@
 <a name="english"></a>
 # English Documentation
 
-Welcome to `hjagar-skills`, the central monorepo for production-grade agentic engineering skills. This repository contains AI skills for requirement discovery, story refinement, developer onboarding, and QA test case generation, alongside CLI tooling to install, update, and release skills across multiple AI coding assistants.
+Welcome to `hjagar-skills`, the central monorepo for production-grade agentic engineering skills. This repository contains AI skills for requirement discovery, story refinement, developer onboarding, and QA test case generation, alongside CLI tooling to install, update, uninstall, and release skills across multiple AI coding assistants.
 
 ---
 
@@ -95,6 +95,32 @@ Keep installed skills synchronized with the latest releases:
 .\cli\update.ps1 -All
 ```
 
+### 3. Uninstallation
+
+Uninstall a specific skill or all skills from AI agent environments and central storage:
+
+#### **Linux / macOS (Bash)**
+```bash
+# Remote 1-liner execution
+curl -fsSL https://raw.githubusercontent.com/hjagar/hjagar-skills/main/cli/uninstall.sh | bash -s -- --skill us-refinement
+curl -fsSL https://raw.githubusercontent.com/hjagar/hjagar-skills/main/cli/uninstall.sh | bash -s -- --all
+
+# Or run locally from clone / central storage (~/.hjagar/skills/)
+./cli/uninstall.sh --skill us-refinement
+./cli/uninstall.sh --all
+```
+
+#### **Windows (PowerShell)**
+```powershell
+# Remote 1-liner execution
+irm https://raw.githubusercontent.com/hjagar/hjagar-skills/main/cli/uninstall.ps1 | iex -Skill us-refinement
+irm https://raw.githubusercontent.com/hjagar/hjagar-skills/main/cli/uninstall.ps1 | iex -All
+
+# Or run locally from clone / central storage (~/.hjagar/skills/)
+.\cli\uninstall.ps1 -Skill us-refinement
+.\cli\uninstall.ps1 -All
+```
+
 ---
 
 ## 🏗️ Monorepo Architecture & CI Sync
@@ -156,7 +182,7 @@ To quality-gate, version-bump, package, and create a GitHub release for a specif
 <a name="español"></a>
 # Documentación en Español
 
-Bienvenido a `hjagar-skills`, el monorepositorio centralizado de skills de ingeniería para agentes de inteligencia artificial. Este repositorio contiene skills para descubrimiento de requerimientos, refinamiento de historias de usuario, onboarding de desarrolladores y generación de casos de prueba QA, junto con herramientas CLI para instalar, actualizar y liberar releases en múltiples asistentes de código.
+Bienvenido a `hjagar-skills`, el monorepositorio centralizado de skills de ingeniería para agentes de inteligencia artificial. Este repositorio contiene skills para descubrimiento de requerimientos, refinamiento de historias de usuario, onboarding de desarrolladores y generación de casos de prueba QA, junto con herramientas CLI para instalar, actualizar, desinstalar y liberar releases en múltiples asistentes de código.
 
 ---
 
@@ -223,6 +249,32 @@ Mantené las skills instaladas al día con las últimas versiones:
 ```powershell
 .\cli\update.ps1 -Skill us-refinement
 .\cli\update.ps1 -All
+```
+
+### 3. Desinstalación
+
+Desinstalá una skill específica o todas las skills de tus entornos de agentes y del almacenamiento central:
+
+#### **Linux / macOS (Bash)**
+```bash
+# Desinstalación mediante script remoto (1 línea)
+curl -fsSL https://raw.githubusercontent.com/hjagar/hjagar-skills/main/cli/uninstall.sh | bash -s -- --skill us-refinement
+curl -fsSL https://raw.githubusercontent.com/hjagar/hjagar-skills/main/cli/uninstall.sh | bash -s -- --all
+
+# O ejecutar localmente desde clone o almacenamiento central (~/.hjagar/skills/)
+./cli/uninstall.sh --skill us-refinement
+./cli/uninstall.sh --all
+```
+
+#### **Windows (PowerShell)**
+```powershell
+# Desinstalación mediante script remoto (1 línea)
+irm https://raw.githubusercontent.com/hjagar/hjagar-skills/main/cli/uninstall.ps1 | iex -Skill us-refinement
+irm https://raw.githubusercontent.com/hjagar/hjagar-skills/main/cli/uninstall.ps1 | iex -All
+
+# O ejecutar localmente desde clone o almacenamiento central (~/.hjagar/skills/)
+.\cli\uninstall.ps1 -Skill us-refinement
+.\cli\uninstall.ps1 -All
 ```
 
 ---
