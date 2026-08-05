@@ -27,4 +27,5 @@ jobs:
         env:
           TOKEN: ${{ secrets.SYNC_PAT || secrets.GH_PAT || secrets.GITHUB_TOKEN }}
         run: |
-          git subtree push --prefix=skills/tc-generator "https://x-access-token:${TOKEN}@github.com/hjagar/tc-generator.git" main
+          git remote add mirror "https://x-access-token:${TOKEN}@github.com/hjagar/tc-generator.git"
+          git subtree push --prefix=skills/tc-generator mirror main

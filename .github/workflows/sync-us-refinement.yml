@@ -27,4 +27,5 @@ jobs:
         env:
           TOKEN: ${{ secrets.SYNC_PAT || secrets.GH_PAT || secrets.GITHUB_TOKEN }}
         run: |
-          git subtree push --prefix=skills/us-refinement "https://x-access-token:${TOKEN}@github.com/hjagar/us-refinement.git" main
+          git remote add mirror "https://x-access-token:${TOKEN}@github.com/hjagar/us-refinement.git"
+          git subtree push --prefix=skills/us-refinement mirror main
