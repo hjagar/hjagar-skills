@@ -27,4 +27,5 @@ jobs:
         env:
           TOKEN: ${{ secrets.SYNC_PAT || secrets.GH_PAT || secrets.GITHUB_TOKEN }}
         run: |
-          git subtree push --prefix=skills/req-discovery "https://x-access-token:${TOKEN}@github.com/hjagar/req-discovery.git" main
+          git remote add mirror "https://x-access-token:${TOKEN}@github.com/hjagar/req-discovery.git"
+          git subtree push --prefix=skills/req-discovery mirror main
