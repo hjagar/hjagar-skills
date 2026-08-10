@@ -1,0 +1,8 @@
+#!/usr/bin/env bash
+# Fake `python3` shim for Release-Repo.sh integration tests (PR2). On this
+# dev environment, the real `python3` PATH entry resolves to a broken
+# Windows Store app-execution-alias stub, not a real interpreter - shadow it
+# with a thin wrapper that delegates to the working `python` binary instead.
+# NOT a behavior fake: forwards args/stdio/exit code unchanged to a REAL
+# Python interpreter found on the (unrestricted) inherited PATH.
+exec python "$@"

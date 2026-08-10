@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Runs every bash test script + Pester/plain-assertion PowerShell test script
-# for the US-17 skill-release-resolution capability (PR1 install.sh/.ps1 +
-# PR2 update.sh/.ps1 + cross-file parity). Exits non-zero if any suite fails.
+# for the US-17 skill-release-resolution (install.sh/.ps1, update.sh/.ps1)
+# and skill-release-publishing (Release-Repo.sh/.ps1) capabilities. Exits
+# non-zero if any suite fails.
 set -u
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -50,6 +51,9 @@ run_bash_suite  "test-update-unit.sh"
 run_bash_suite  "test-install-integration.sh"
 run_bash_suite  "test-update-integration.sh"
 
+run_bash_suite  "test-release-repo-unit.sh"
+run_bash_suite  "test-release-repo-integration.sh"
+
 if command -v pwsh &>/dev/null; then
     run_pwsh_suite   "Test-InstallUnit.ps1"
     run_pwsh_suite   "Test-UpdateUnit.ps1"
@@ -58,6 +62,9 @@ if command -v pwsh &>/dev/null; then
     run_pwsh_suite   "Test-InstallIntegration.ps1"
     run_pwsh_suite   "Test-UpdateIntegration.ps1"
     run_bash_suite   "test-parity.sh"
+    run_pwsh_suite   "Test-ReleaseRepoUnit.ps1"
+    run_pwsh_suite   "Test-ReleaseRepoIntegration.ps1"
+    run_bash_suite   "test-release-repo-parity.sh"
 else
     echo "SKIP: pwsh not found — skipping all PowerShell test suites"
 fi
