@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Fake `zip` for Release-Repo.sh integration tests (PR2) - the real `zip`
+# binary isn't installed on every dev machine. Only supports the exact
+# invocation shape Release-Repo.sh uses: `zip -rq <path> <dir> [<dir> ...]`.
+# Creates an empty file at <path> so downstream steps see it exist; it does
+# NOT produce a real archive. Zip *contents* (D4 staged layout) are proven
+# directly against a real zip/unzip in test-release-repo-unit.sh, skipped
+# there only when zip/unzip aren't both present.
+zip_path=""
+for arg in "$@"; do
+    case "$arg" in
+        -*) ;;
+        *)
+            if [ -z "$zip_path" ]; then zip_path="$arg"; fi
+            ;;
+    esac
+done
+mkdir -p "$(dirname "$zip_path")"
+: > "$zip_path"
+exit 0

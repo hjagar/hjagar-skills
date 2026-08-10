@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Fake `gh` CLI for Release-Repo.sh integration tests (PR2). Separate from
+# cli/tests/fixtures/bin/gh (PR1, install.sh/update.sh-scoped) so PR1's
+# fixture is never touched by PR2 work.
+#
+#   FAKE_GH_CALL_LOG      - if set, every invocation's args are appended here.
+#   FAKE_REPO_VIEW_EMPTY  - if "1", `repo view` resolves nothing (simulates
+#                            gh being unable to resolve any repo at all -
+#                            auth/network failure). Takes priority over
+#                            FAKE_REPO_VIEW_RESULT. A dedicated flag (rather
+#                            than an empty FAKE_REPO_VIEW_RESULT) because
+#                            Windows process environments cannot reliably
+#                            carry a genuinely empty env var value end-to-end
+#                            through a PowerShell -> cmd.exe -> bash chain.
+#   FAKE_REPO_VIEW_RESULT - if set to a non-empty value, used verbatim as the
+#                            `repo view --json nameWithOwner --jq
+#                            .nameWithOwner` answer. When neither this nor
+#                            FAKE_REPO_VIEW_EMPTY is set, the answer is
+#                            derived from real `git remote` configuration in
+#                            the current directory, preferring `upstream` over
+#                            `origin` when both exist - this mirrors gh's own
+#                            real-world remote-resolution preference and is
+#                            the exact misconfiguration scenario under test
+#                            (US-17 design Threat Matrix: "Git repository
+#                            selection").
+
+if [ -n "${FAKE_GH_CALL_LOG:-}" ]; then
+    printf 'gh %s\n' "$*" >> "$FAKE_GH_CALL_LOG"
+fi
+
+if [ "${1:-}" = "repo" ] && [ "${2:-}" = "view" ]; then
+    if [ "${FAKE_REPO_VIEW_EMPTY:-0}" = "1" ]; then
+        exit 1
+    fi
+    if [ -n "${FAKE_REPO_VIEW_RESULT:-}" ]; then
+        printf '%s\n' "$FAKE_REPO_VIEW_RESULT"
+        exit 0
+    fi
+    url=""
+    if git remote get-url upstream &>/dev/null; then
+        url="$(git remote get-url upstream)"
+    elif git remote get-url origin &>/dev/null; then
+        url="$(git remote get-url origin)"
+    fi
+    if [ -z "$url" ]; then
+        exit 1
+    fi
+    printf '%s\n' "$url" | sed -E 's#.*github\.com[:/]##; s#\.git$##'
+    exit 0
+fi
+
+if [ "${1:-}" = "release" ] && [ "${2:-}" = "create" ]; then
+    exit 0
+fi
+
+exit 1

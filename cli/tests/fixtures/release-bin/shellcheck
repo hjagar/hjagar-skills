@@ -1,0 +1,7 @@
+#!/usr/bin/env bash
+# Stand-in for the shellcheck tool, used only by Release-Repo.sh integration
+# tests (PR2). Its real output isn't relevant to the D6 preflight-guard
+# scenarios under test here - always succeeds so those scenarios reach
+# packaging/preflight deterministically. Real 0-warning verification of
+# Release-Repo.sh/.ps1 themselves is run separately (see apply-progress).
+exit 0
