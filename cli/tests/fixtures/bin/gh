@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Fake `gh` CLI for cli/tests/*. Controlled entirely via environment variables
+# so each test can select success/failure/output shape without touching PATH:
+#   FAKE_CALL_LOG      - if set, every invocation's args are appended here
+#                         (tests assert this file is absent/empty to prove
+#                         "no network call happened")
+#   FAKE_GH_FAIL=1     - simulate `gh` present but failing (auth/network error)
+#   FAKE_TAGS_LIST      - newline-separated tag_name list `gh api --jq` would
+#                         have already extracted
+#   FAKE_ZIP_SRC        - local file copied as the "downloaded" zip
+
+if [ -n "${FAKE_CALL_LOG:-}" ]; then
+    printf 'gh %s\n' "$*" >> "$FAKE_CALL_LOG"
+fi
+
+if [ "${FAKE_GH_FAIL:-0}" = "1" ]; then
+    exit 1
+fi
+
+if [ "$1" = "api" ]; then
+    if [ -n "${FAKE_TAGS_LIST:-}" ]; then
+        printf '%s\n' "$FAKE_TAGS_LIST"
+        exit 0
+    fi
+    exit 1
+fi
+
+if [ "$1" = "release" ] && [ "$2" = "download" ]; then
+    out=""
+    shift 2
+    while [ "$#" -gt 0 ]; do
+        if [ "$1" = "--output" ]; then
+            out="$2"
+        fi
+        shift
+    done
+    if [ -n "$out" ] && [ -n "${FAKE_ZIP_SRC:-}" ]; then
+        cp "$FAKE_ZIP_SRC" "$out"
+        exit 0
+    fi
+    exit 1
+fi
+
+exit 1
