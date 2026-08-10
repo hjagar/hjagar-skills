@@ -1,0 +1,49 @@
+#!/usr/bin/env bash
+# Fake `curl` for cli/tests/*. Controlled entirely via environment variables:
+#   FAKE_CALL_LOG        - if set, every invocation's args are appended here
+#   FAKE_CURL_FAIL=1      - simulate curl present but failing (network error)
+#   FAKE_RELEASES_JSON    - file whose content is served for the `/releases`
+#                           list endpoint
+#   FAKE_ZIP_SRC          - local file copied as the "downloaded" zip for the
+#                           `/releases/download/<tag>/<name>.zip` endpoint
+
+if [ -n "${FAKE_CALL_LOG:-}" ]; then
+    printf 'curl %s\n' "$*" >> "$FAKE_CALL_LOG"
+fi
+
+if [ "${FAKE_CURL_FAIL:-0}" = "1" ]; then
+    exit 1
+fi
+
+out=""
+url=""
+prev=""
+for arg in "$@"; do
+    if [ "$prev" = "-o" ]; then
+        out="$arg"
+    fi
+    case "$arg" in
+        http*://*) url="$arg" ;;
+    esac
+    prev="$arg"
+done
+
+case "$url" in
+    */releases/download/*)
+        if [ -n "$out" ] && [ -n "${FAKE_ZIP_SRC:-}" ]; then
+            cp "$FAKE_ZIP_SRC" "$out"
+            exit 0
+        fi
+        exit 1
+        ;;
+    */releases)
+        if [ -n "${FAKE_RELEASES_JSON:-}" ]; then
+            cat "$FAKE_RELEASES_JSON"
+            exit 0
+        fi
+        exit 1
+        ;;
+    *)
+        exit 1
+        ;;
+esac
