@@ -48,7 +48,7 @@ Activate this skill when:
 
 Return:
 - Refined story output conforming to `assets/story-template.md`.
-- Storage persistence confirmation (`Engram` memory record and/or `openspec/` file path).
+- A `Stored at:` receipt line naming the exact backend and location per `references/storage-modes.md` (Engram topic key, file path, or both in `hybrid`/`hybrid-delayed` mode).
 - Optional GitHub write-back status and label updates.
 
 ## References
