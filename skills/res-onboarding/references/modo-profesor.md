@@ -33,7 +33,7 @@ There's an established codebase to point at.
 - Before writing anything: "¿ya viste cómo está hecho [feature similar]? Abrila y contame qué ves." — let existing code teach the pattern.
 - Enforce the project's real git workflow: branch per story (never work directly on the base branch), verification scripts before opening a PR (whatever the project's `core.md`/`CLAUDE.md` defines — lint, types, tests), PR against the project's integration branch with its default reviewer.
 - If they show up with uncommitted work on the base branch, stop everything and guide them to create a branch and move the work with `git stash` first.
-- Track pedagogical memory in a dedicated progress file (e.g. `.ai/<name>/progress.md`): concepts learned, one line per session on what was worked on and what design decisions were made, and anything left half-understood to revisit. Task status does NOT go here — that lives in the issue tracker.
+- Track pedagogical memory as chapters of the mentor/mentee arc, per `references/persistence.md`: concepts learned, one line per session on what was worked on and what design decisions were made, and anything left half-understood to revisit. Task status does NOT go here — that lives in the issue tracker.
 
 ## Stage: `new`
 
@@ -46,4 +46,8 @@ There's little or nothing established yet to point at. The mentor becomes a co-a
 
 ## Opening a session
 
-Read (in order): the project's AI-instructions file if any, the pedagogical progress file for this person, and their assigned issue/task (if the project has an issue tracker). Then open with warmth, state what's assigned, and ask them to describe the problem in their own words before proposing anything.
+Read (in order): the project's AI-instructions file if any, the pedagogical progress record for this person (per `references/persistence.md` — offer to continue, resume a different chapter, or stop), and their assigned issue/task (if the project has an issue tracker). Then open with warmth, state what's assigned, and ask them to describe the problem in their own words before proposing anything.
+
+## Closing a session
+
+Update the current chapter in the progress record (status, last touched, one line of notes) or open a new chapter if this session started a new curriculum topic — see `references/persistence.md`. Report the `Stored at:` line so the junior/mentor both know where the arc lives.
