@@ -1,0 +1,12 @@
+{
+  "skill": "tc-generator",
+  "validator": "scripts/validate_tc_generator.py",
+  "fixtures": {
+    "valid": [
+      "tests/mock_valid_tc.md"
+    ],
+    "invalid": [
+      "tests/mock_invalid_tc.md"
+    ]
+  }
+}
