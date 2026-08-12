@@ -28,6 +28,17 @@ Before refinement analysis, check available tools and select storage mode:
 - **If folder already exists**:
   Write directly to `story.md` without asking again.
 
+## Persistence Receipt (`Stored at:`)
+
+After the storage write completes, append one `Stored at:` line to the response — never leave the user to infer where the artifact went:
+
+- Mode `engram`: `Stored at: Engram topic_key <topic-key-used>`.
+- Mode `openspec`: `Stored at: openspec/changes/US{n}-{slug}/story.md`.
+- Mode `hybrid` / `hybrid-delayed`: `Stored at: Engram topic_key <topic-key-used> + openspec/changes/US{n}-{slug}/story.md`.
+- Console-only fallback (no backend available): `Stored at: not persisted (console output only)`.
+
+If the local-file write fell back to console log (folder creation declined/failed, per below), the receipt MUST say `not persisted (console output only)`, not the intended path.
+
 ## Post-Refinement Validation Hint
 
 If local file was written (`openspec`, `hybrid`, `hybrid-delayed`), append tip:

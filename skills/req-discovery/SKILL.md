@@ -24,7 +24,7 @@ metadata:
 - **HR-7**: Segment long transcripts (~400 lines) sequentially at natural boundaries (~100 lines overlap) preserving traceability index.
 - **HR-8**: Cross-meeting dedup — run read-only check against rejected/approved corpus. Add conditional `Possible match`; never auto-classify, merge, or delete.
 - **HR-9**: Zero-candidate result — if no signals found, return exactly `"No candidate requirements were found in this transcript."` in transcript language.
-- **HR-10**: Rejection storage — set-aside candidates MUST persist to Engram or dual fallback files (`openspec/req-discovery-rejected/index.md` & `{NN}-{slug}.md`).
+- **HR-10**: Rejection storage — set-aside candidates MUST persist to Engram or dual fallback files (`openspec/req-discovery-rejected/index.md` & `{NN}-{slug}.md`). Every persisted set-aside candidate MUST be followed by a `Stored at:` line naming the exact backend and location (Engram topic key, or the two file paths written).
 - **HR-11**: Graceful degrade + honest coverage — fallback gracefully if backends missing; disclose when approved-tier history coverage is limited.
 
 > **Backend Priority Pattern**: Highest available backend wins (Engram > local OpenSpec > Markdown). Never fail run if missing.
@@ -37,7 +37,7 @@ metadata:
 | **Signal Detection** | 0 signals? | Output "No candidate requirements were found in this transcript." and **STOP**. |
 | **Dedup Check** | Corpus match? | Attach `Possible match` line. Do NOT alter candidate list. |
 | **User Review** | Approved? | Include in Hand-off list for `us-refinement`. |
-| **User Review** | Set-aside? | Persist to rejection storage (Engram / OpenSpec) with reason. |
+| **User Review** | Set-aside? | Persist to rejection storage (Engram / OpenSpec) with reason, then emit `Stored at:` receipt. |
 
 ## Execution Steps
 
@@ -63,6 +63,10 @@ metadata:
 ```
 
 Hand-off output contains approved candidate stories ready to paste into `us-refinement`.
+
+If any candidate was set aside and persisted (HR-10), append one `Stored at:` line per candidate:
+- Engram available: `Stored at: Engram topic_key <topic-key-used>`.
+- Engram unavailable (dual-file fallback): `Stored at: openspec/req-discovery-rejected/index.md + openspec/req-discovery-rejected/{NN}-{slug}.md`.
 
 ## References
 - [Rejection Storage Index Template](assets/rejection-index-template.md)

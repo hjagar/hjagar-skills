@@ -53,6 +53,7 @@ Return:
   - Track A (Unit test suggestions) — only if unit tests were missing.
   - Track B (QA manual checklist) — grouped by Happy path, Edge cases, Negative/error cases.
 - Summary confirmation of generated file and detected source context.
+- A `Stored at:` receipt line naming the exact file path written, e.g. `Stored at: test-cases-<id-or-slug>.md`.
 
 ## References
 
