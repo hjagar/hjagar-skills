@@ -73,21 +73,29 @@ function Invoke-QualityGate {
                 }
             }
         } else {
-            Write-Host "Warning: no scripts/tests found for $TargetSkill - skipping quality gate" -ForegroundColor Yellow
-            return $true
+            Write-Host "Error: no validation.json manifest found for $TargetSkill - quality gate requires one." -ForegroundColor Red
+            return $false
         }
     } else {
-        $manifests = Get-ChildItem -Path $skillsDir -Filter "validation.json" -Recurse -File -ErrorAction SilentlyContinue
+        $skillDirs = Get-ChildItem -Path $skillsDir -Directory -ErrorAction SilentlyContinue
 
-        foreach ($manifest in $manifests) {
+        foreach ($dir in $skillDirs) {
+            $skillDir = $dir.FullName
+            $manifestPath = Join-Path $skillDir "validation.json"
+
+            if (-not (Test-Path $manifestPath)) {
+                Write-Host "Error: skill '$($dir.Name)' is missing validation.json - quality gate requires one." -ForegroundColor Red
+                $failed = $true
+                continue
+            }
+
             $manifestCount++
-            $skillDir = $manifest.Directory.FullName
-            $data = Get-Content $manifest.FullName -Raw | ConvertFrom-Json
-            $skillName = if ($data.skill) { $data.skill } else { $manifest.Directory.Name }
+            $data = Get-Content $manifestPath -Raw | ConvertFrom-Json
+            $skillName = if ($data.skill) { $data.skill } else { $dir.Name }
             $validatorRel = $data.validator
 
             if ([string]::IsNullOrWhiteSpace($validatorRel)) {
-                Write-Host "Error: Manifest $($manifest.FullName) missing 'validator' field." -ForegroundColor Red
+                Write-Host "Error: Manifest $manifestPath missing 'validator' field." -ForegroundColor Red
                 $failed = $true
                 continue
             }

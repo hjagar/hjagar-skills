@@ -65,18 +65,24 @@ run_quality_gate() {
                 fi
             done < <(python3 -c "import sys, json; data=json.load(open(sys.argv[1])); [print(f) for f in data.get('fixtures', {}).get('invalid', [])]" "$manifest")
         else
-            echo "Warning: no scripts/tests found for $target_skill — skipping quality gate"
-            return 0
+            echo "Error: no validation.json manifest found for $target_skill — quality gate requires one." >&2
+            return 1
         fi
     else
-        for manifest in "$skills_dir"/*/validation.json; do
-            [[ -f "$manifest" ]] || continue
-            manifest_count=$((manifest_count + 1))
-
-            local skill_dir
-            skill_dir="$(dirname "$manifest")"
+        for skill_dir in "$skills_dir"/*/; do
+            [[ -d "$skill_dir" ]] || continue
+            skill_dir="${skill_dir%/}"
             local default_skill_name
             default_skill_name="$(basename "$skill_dir")"
+            local manifest="$skill_dir/validation.json"
+
+            if [[ ! -f "$manifest" ]]; then
+                echo "Error: skill '$default_skill_name' is missing validation.json — quality gate requires one." >&2
+                failed=true
+                continue
+            fi
+
+            manifest_count=$((manifest_count + 1))
 
             local skill_name validator_rel
             skill_name=$(python3 -c "import sys, json; data=json.load(open(sys.argv[1])); print(data.get('skill', sys.argv[2]))" "$manifest" "$default_skill_name")
