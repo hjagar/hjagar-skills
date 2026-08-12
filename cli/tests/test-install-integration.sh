@@ -211,6 +211,26 @@ assert_true "LOCAL mode installs under requested skill name" \
     "$([ -f "$HOME_DIR/.gemini/skills/req-discovery/SKILL.md" ] && echo true || echo false)"
 rm -rf "$HOME_DIR"
 
+# ---------------------------------------------------------------------------
+# US-23 — Kiro is a kept, tested special case: a flat steering file must be
+# generated at ~/.kiro/steering/<skill>.md alongside the folder-convention
+# agent dirs, with `inclusion: always` injected as the first key inside the
+# copied SKILL.md's YAML frontmatter.
+# ---------------------------------------------------------------------------
+HOME_DIR="$(sandbox_home)"
+OUT=$(HOME="$HOME_DIR" PATH="$RESTRICTED_PATH" \
+    bash "$INSTALL_SH" --local --path "$REPO_ROOT" --skill req-discovery 2>&1)
+STATUS=$?
+KIRO_FILE="$HOME_DIR/.kiro/steering/req-discovery.md"
+assert_status "LOCAL mode install (req-discovery) succeeds for Kiro case" "0" "$STATUS"
+assert_true "Kiro steering file is generated" \
+    "$([ -f "$KIRO_FILE" ] && echo true || echo false)"
+assert_eq "Kiro steering file's first line is the '---' frontmatter delimiter" \
+    "---" "$(head -n 1 "$KIRO_FILE")"
+assert_eq "Kiro steering file injects 'inclusion: always' as the second line" \
+    "inclusion: always" "$(sed -n '2p' "$KIRO_FILE")"
+rm -rf "$HOME_DIR"
+
 echo ""
 echo "install-integration: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

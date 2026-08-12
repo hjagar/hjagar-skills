@@ -183,6 +183,37 @@ assert_contains "omitted --skill with nothing installed names the error" \
     "skills are not installed globally at" "$OUT"
 rm -rf "$HOME_DIR"
 
+# ---------------------------------------------------------------------------
+# US-23 — Kiro update is conditional on prior Kiro install: a pre-existing
+# steering file must be regenerated (frontmatter re-injected), but an absent
+# one must NOT be created by update.sh.
+# ---------------------------------------------------------------------------
+HOME_DIR="$(sandbox_home)"
+seed_installed_skill "$HOME_DIR" "req-discovery" "v1.0.0"
+mkdir -p "$HOME_DIR/.kiro/steering"
+printf -- '---\nname: req-discovery\n---\nold body\n' > "$HOME_DIR/.kiro/steering/req-discovery.md"
+OUT=$(HOME="$HOME_DIR" PATH="$RESTRICTED_PATH" \
+    FAKE_TAGS_LIST=$'req-discovery-v1.0.0\nreq-discovery-v1.10.0' \
+    FAKE_ZIP_SRC="$FIXTURES/data/req-discovery.zip" \
+    bash "$UPDATE_SH" --skill req-discovery 2>&1)
+STATUS=$?
+assert_status "update regenerates a pre-existing Kiro steering file: succeeds" "0" "$STATUS"
+assert_eq "update regenerates a pre-existing Kiro steering file: re-injects frontmatter" \
+    "inclusion: always" "$(sed -n '2p' "$HOME_DIR/.kiro/steering/req-discovery.md")"
+rm -rf "$HOME_DIR"
+
+HOME_DIR="$(sandbox_home)"
+seed_installed_skill "$HOME_DIR" "req-discovery" "v1.0.0"
+OUT=$(HOME="$HOME_DIR" PATH="$RESTRICTED_PATH" \
+    FAKE_TAGS_LIST=$'req-discovery-v1.0.0\nreq-discovery-v1.10.0' \
+    FAKE_ZIP_SRC="$FIXTURES/data/req-discovery.zip" \
+    bash "$UPDATE_SH" --skill req-discovery 2>&1)
+STATUS=$?
+assert_status "update leaves absent Kiro steering file untouched: succeeds" "0" "$STATUS"
+assert_true "update leaves absent Kiro steering file untouched: no file created" \
+    "$([ ! -f "$HOME_DIR/.kiro/steering/req-discovery.md" ] && echo true || echo false)"
+rm -rf "$HOME_DIR"
+
 echo ""
 echo "update-integration: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

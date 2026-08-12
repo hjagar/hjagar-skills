@@ -45,6 +45,24 @@ Assert-True "LOCAL mode installs under requested skill name" `
     (Test-Path (Join-Path $homeDir ".gemini\skills\req-discovery\SKILL.md"))
 Remove-Item $homeDir -Recurse -Force -ErrorAction SilentlyContinue
 
+# ---------------------------------------------------------------------------
+# US-23 — Kiro is a kept, tested special case: a flat steering file must be
+# generated at ~/.kiro/steering/<skill>.md with `inclusion: always` injected
+# as the second line of the copied SKILL.md's YAML frontmatter.
+# ---------------------------------------------------------------------------
+$homeDir = Join-Path $env:TEMP ("install-ps1-kiro-" + [Guid]::NewGuid())
+New-Item -ItemType Directory -Path $homeDir -Force | Out-Null
+$r = Invoke-Sandboxed -ScriptArgs @("-Local", "-Path", $RepoRoot, "-Skill", "req-discovery") -HomeDir $homeDir
+$kiroFile = Join-Path $homeDir ".kiro\steering\req-discovery.md"
+Assert-True "LOCAL mode install (req-discovery) succeeds for Kiro case" ($r.ExitCode -eq 0)
+Assert-True "Kiro steering file is generated" (Test-Path $kiroFile)
+if (Test-Path $kiroFile) {
+    $kiroLines = Get-Content -Path $kiroFile
+    Assert-True "Kiro steering file's first line is the '---' frontmatter delimiter" ($kiroLines[0] -eq "---")
+    Assert-True "Kiro steering file injects 'inclusion: always' as the second line" ($kiroLines[1] -eq "inclusion: always")
+}
+Remove-Item $homeDir -Recurse -Force -ErrorAction SilentlyContinue
+
 Write-Host ""
 Write-Host "install-integration (ps1 subprocess): $script:Pass passed, $script:Fail failed"
 if ($script:Fail -gt 0) { exit 1 } else { exit 0 }

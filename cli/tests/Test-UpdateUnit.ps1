@@ -97,6 +97,38 @@ $discoveredEmpty = Get-LocallyInstalledSkillNames -CentralDir $tmpCentral3
 Assert-Eq "no locally-installed skills returns empty" 0 $discoveredEmpty.Count
 Remove-Item -Path $tmpCentral3 -Recurse -Force
 
+# --- Kiro update conditional (US-23) — mirrors update.ps1's Update-OneSkill
+# lines 296-299 exactly: regenerate only when a steering file already exists,
+# never create one that wasn't there before.
+$payloadLib = Join-Path $ScriptDir "..\lib\skill-payload.ps1"
+. $payloadLib
+
+$kiroSrc = Join-Path $env:TEMP ("update-unit-kiro-src-" + [Guid]::NewGuid())
+New-Item -ItemType Directory -Path $kiroSrc -Force | Out-Null
+"---`nname: req-discovery`n---`nbody`n" | Set-Content -Path (Join-Path $kiroSrc "SKILL.md") -NoNewline
+
+$HomeDir = Join-Path $env:TEMP ("update-unit-kiro-home-" + [Guid]::NewGuid())
+New-Item -ItemType Directory -Path (Join-Path $HomeDir ".kiro\steering") -Force | Out-Null
+"---`nname: req-discovery`n---`nold body`n" | Set-Content -Path (Join-Path $HomeDir ".kiro\steering\req-discovery.md") -NoNewline
+
+$kiroTarget = Join-Path $HomeDir ".kiro\steering\req-discovery.md"
+if (Test-Path $kiroTarget) {
+    New-KiroSteeringFile $kiroSrc "req-discovery"
+}
+$regenerated = Get-Content -Path $kiroTarget -Raw
+Assert-True "update regenerates a pre-existing Kiro steering file" ($regenerated -match "inclusion: always")
+
+Remove-Item -Path (Join-Path $HomeDir ".kiro") -Recurse -Force
+New-Item -ItemType Directory -Path $HomeDir -Force | Out-Null
+$kiroTargetAbsent = Join-Path $HomeDir ".kiro\steering\req-discovery.md"
+if (Test-Path $kiroTargetAbsent) {
+    New-KiroSteeringFile $kiroSrc "req-discovery"
+}
+Assert-True "update leaves absent Kiro steering file untouched" (-not (Test-Path $kiroTargetAbsent))
+
+Remove-Item -Path $kiroSrc -Recurse -Force
+Remove-Item -Path $HomeDir -Recurse -Force
+
 Write-Host ""
 Write-Host "update-unit (ps1): $script:Pass passed, $script:Fail failed"
 if ($script:Fail -gt 0) { exit 1 } else { exit 0 }

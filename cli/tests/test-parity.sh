@@ -138,6 +138,45 @@ for bad in "a b" "../x"; do
     rm -rf "$HOME_DIR" "$HOME_DIR2"
 done
 
+# ---------------------------------------------------------------------------
+# US-23 — new_kiro_steering_file (bash) vs New-KiroSteeringFile (ps1) produce
+# byte-identical steering files for the same source, including EOL handling:
+# a CRLF-terminated SKILL.md must get a CRLF-terminated injected line on both
+# sides.
+# ---------------------------------------------------------------------------
+KIRO_SRC="$(mktemp -d)"
+printf '%s' $'---\r\nname: req-discovery\r\n---\r\nbody\r\n' > "$KIRO_SRC/SKILL.md"
+
+BASH_KIRO_HOME="$(mktemp -d)"
+(
+    HOME="$BASH_KIRO_HOME"
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/cli/lib/skill-payload.sh"
+    new_kiro_steering_file "$KIRO_SRC" "req-discovery"
+) >/dev/null 2>&1
+BASH_KIRO_OUT="$(tr -d '\n' < "$BASH_KIRO_HOME/.kiro/steering/req-discovery.md" | tr -d '\r' && echo)"
+BASH_KIRO_HAS_CRLF=$(grep -c $'inclusion: always\r$' "$BASH_KIRO_HOME/.kiro/steering/req-discovery.md" || true)
+
+KIRO_SRC_WIN="$(to_win_path "$KIRO_SRC")"
+PS1_KIRO_HOME="$(mktemp -d)"
+PS1_KIRO_HOME_WIN="$(to_win_path "$PS1_KIRO_HOME")"
+pwsh -NoProfile -Command "
+    . '$SCRIPT_DIR_WIN\..\lib\skill-payload.ps1' | Out-Null
+    \$HomeDir = '$PS1_KIRO_HOME_WIN'
+    New-KiroSteeringFile '$KIRO_SRC_WIN' 'req-discovery'
+" >/dev/null 2>&1
+PS1_KIRO_TARGET="$PS1_KIRO_HOME/.kiro/steering/req-discovery.md"
+PS1_KIRO_HAS_CRLF=$(grep -c $'inclusion: always\r$' "$PS1_KIRO_TARGET" 2>/dev/null || true)
+
+assert_eq "CRLF source: bash injects CRLF-terminated 'inclusion: always'" "1" "${BASH_KIRO_HAS_CRLF:-0}"
+assert_eq "CRLF source: ps1 injects CRLF-terminated 'inclusion: always'" "1" "${PS1_KIRO_HAS_CRLF:-0}"
+
+BASH_KIRO_LINE2="$(sed -n '2p' "$BASH_KIRO_HOME/.kiro/steering/req-discovery.md" | tr -d '\r')"
+PS1_KIRO_LINE2="$(sed -n '2p' "$PS1_KIRO_TARGET" 2>/dev/null | tr -d '\r')"
+assert_eq "bash and ps1 inject the same content on line 2" "$BASH_KIRO_LINE2" "$PS1_KIRO_LINE2"
+
+rm -rf "$KIRO_SRC" "$BASH_KIRO_HOME" "$PS1_KIRO_HOME"
+
 echo ""
 echo "parity: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

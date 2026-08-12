@@ -79,6 +79,33 @@ Assert-Eq "discover-all on empty tag list returns empty" 0 $discoveredEmpty.Coun
 $discoveredNoMatch = Get-SkillNamesFromTags -Tags @("not-a-tag", "random-text")
 Assert-Eq "discover-all ignores tags not matching <skill>-vMAJOR.MINOR.PATCH" 0 $discoveredNoMatch.Count
 
+# --- New-KiroSteeringFile (US-23 — EOL-preserving frontmatter injection) ---
+
+$payloadLib = Join-Path $ScriptDir "..\lib\skill-payload.ps1"
+. $payloadLib
+
+$kiroSrc = Join-Path $env:TEMP ("install-unit-kiro-" + [Guid]::NewGuid())
+New-Item -ItemType Directory -Path $kiroSrc -Force | Out-Null
+$HomeDir = Join-Path $env:TEMP ("install-unit-kiro-home-" + [Guid]::NewGuid())
+New-Item -ItemType Directory -Path $HomeDir -Force | Out-Null
+
+$utf8NoBom = [System.Text.UTF8Encoding]::new($false)
+[System.IO.File]::WriteAllText((Join-Path $kiroSrc "SKILL.md"), "---`nname: req-discovery`n---`nbody`n", $utf8NoBom)
+New-KiroSteeringFile $kiroSrc "req-discovery"
+$lfOut = [System.IO.File]::ReadAllText((Join-Path $HomeDir ".kiro\steering\req-discovery.md"), $utf8NoBom)
+$lfLines = $lfOut -split "`n"
+Assert-Eq "LF source: 'inclusion: always' injected as line 2" "inclusion: always" $lfLines[1]
+Assert-True "LF source: injected line keeps LF terminator (no stray CR)" (-not ($lfOut -match "inclusion: always`r"))
+
+[System.IO.File]::WriteAllText((Join-Path $kiroSrc "SKILL.md"), "---`r`nname: req-discovery`r`n---`r`nbody`r`n", $utf8NoBom)
+New-KiroSteeringFile $kiroSrc "req-discovery"
+$crlfOut = [System.IO.File]::ReadAllText((Join-Path $HomeDir ".kiro\steering\req-discovery.md"), $utf8NoBom)
+Assert-True "CRLF source: injected 'inclusion: always' line keeps CRLF terminator" `
+    ($crlfOut -match "inclusion: always`r`n")
+
+Remove-Item -Path $kiroSrc -Recurse -Force
+Remove-Item -Path $HomeDir -Recurse -Force
+
 Write-Host ""
 Write-Host "install-unit (ps1): $script:Pass passed, $script:Fail failed"
 if ($script:Fail -gt 0) { exit 1 } else { exit 0 }
