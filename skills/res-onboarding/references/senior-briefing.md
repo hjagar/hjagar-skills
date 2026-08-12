@@ -20,3 +20,7 @@ No pedagogy, no Socratic gating. The goal is dense, fast context transfer — tr
 ## If the project is `new`
 
 Keep the same structure, just shorter — mostly stack, commands, and whatever direction/roadmap exists. Flag explicitly what's still undecided so the senior knows where their judgment is needed rather than assuming precedent exists.
+
+## Persisting what's shown
+
+The six sections above are the canonical log IDs used by `references/persistence.md`: `project-map`, `stack-commands`, `architecture`, `conventions`, `gotchas`, `where-to-look`. Before generating a briefing for a returning senior, check the progress record and skip sections already marked shown unless they explicitly ask to revisit one. At session end, mark every section actually shown, by ID, with the session date.
