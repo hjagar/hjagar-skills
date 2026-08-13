@@ -16,3 +16,11 @@
 **Possible match:** approved tier, "Order-shipped SMS notification", exact match
 
 <!-- en-summary: Customers should get a text message when their order ships, so they stop filing "where is my order" support tickets. Shipment data already exists; explicit ask, not revisited. -->
+
+### Cart abandonment reminder email
+**Story:** As a customer, I want a reminder email if I leave items in my cart, so that I don't forget to complete a purchase I meant to make.
+**Context:** Raised during the drop-off discussion; speaker attribution wasn't caught on tape for this specific point.
+**Resolution:** N/A — not revisited elsewhere in the meeting.
+**Confidence:** implied
+
+<!-- en-summary: Customers should get a reminder email about abandoned cart items so they don't forget to check out. Attribution unclear from the recording; not revisited. -->

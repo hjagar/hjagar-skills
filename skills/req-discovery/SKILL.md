@@ -1,18 +1,18 @@
 ---
 name: req-discovery
-description: "Trigger: user pastes a transcript, references a meeting, or asks to extract requirements or draft stories from a conversation. Drafts raw user stories for us-refinement."
+description: "Trigger: user pastes a transcript or a single-author note/brain-dump, references a meeting, or asks to extract requirements or draft stories from a conversation or personal notes. Drafts raw user stories for us-refinement."
 license: MIT
 metadata:
   author: hjagar
-  version: "1.1.0"
+  version: "1.2.0"
 ---
 
 # req-discovery
 
 ## Activation Contract
-- **Trigger**: User pastes a meeting transcript, references a meeting, or asks to extract requirements / draft user stories from a conversation.
-- **Role**: Surface requirement-shaped signals from transcripts as raw draft user stories. Story refinement (INVEST, Given/When/Then, IDs) is handled downstream by `us-refinement`.
-- **Input**: Plain text transcript (file path or pasted). Text only (no audio).
+- **Trigger**: User pastes a meeting transcript or a single-author note/brain-dump, references a meeting, or asks to extract requirements / draft user stories from a conversation or personal notes.
+- **Role**: Surface requirement-shaped signals from transcripts or single-author notes as raw draft user stories. Story refinement (INVEST, Given/When/Then, IDs) is handled downstream by `us-refinement`.
+- **Input**: Plain text transcript or single-author note/brain-dump (file path or pasted). Text only (no audio).
 
 ## Hard Rules
 - **HR-1**: Text input only. If audio is provided, notify user and stop immediately (speech-to-text handled upstream).
@@ -34,6 +34,7 @@ metadata:
 | Gate | Check | Action |
 |------|-------|--------|
 | **Input Format** | Audio provided? | **STOP**. Report speech-to-text must be done upstream. |
+| **Source Detection** | Multi-speaker structure present (speaker labels, timestamps, dialogue turns)? | Present -> **transcript mode** (unchanged). Absent -> **prompt mode**. Ambiguous -> ask once, non-blocking; proceed in transcript mode if unanswered. |
 | **Signal Detection** | 0 signals? | Output "No candidate requirements were found in this transcript." and **STOP**. |
 | **Dedup Check** | Corpus match? | Attach `Possible match` line. Do NOT alter candidate list. |
 | **User Review** | Approved? | Include in Hand-off list for `us-refinement`. |
@@ -61,6 +62,10 @@ metadata:
 
 <!-- en-summary: <English prose recap> -->
 ```
+
+Two fields change wording by mode (per Source Detection gate); every other field is identical in both modes:
+- **Context** — transcript mode: `<paraphrase, speaker, timestamp if known>`. Prompt mode: `<paraphrase of the note>` (no speaker or timestamp reference).
+- **Resolution** — transcript mode: `<note if topic revisited; last position wins>`. Prompt mode: `<note if topic revisited within the same note; latest wording wins>` (no speaker framing).
 
 Hand-off output contains approved candidate stories ready to paste into `us-refinement`.
 
