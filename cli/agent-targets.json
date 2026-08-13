@@ -1,0 +1,13 @@
+{
+  "$schema": "https://hjagar/hjagar-skills/cli/agent-targets.schema (informal)",
+  "description": "Declarative manifest of per-agent skill install targets, consumed by build_agent_paths() (cli/lib/skill-payload.sh) and Get-AgentPaths (cli/lib/skill-payload.ps1). Each target's path_template is relative to $HOME, with {skill_name} substituted at install time. The dynamic .claude-* multi-account discovery is NOT listed here - it scans $HOME at install time and is handled as runtime logic in both scripts. An entry with a \"transform\" field is a special case handled by a dedicated writer function (e.g. new_kiro_steering_file / New-KiroSteeringFile) instead of the generic folder+SKILL.md copy, and is therefore excluded from the plain path list both scripts build.",
+  "targets": [
+    { "id": "gemini", "path_template": ".gemini/skills/{skill_name}" },
+    { "id": "claude", "path_template": ".claude/skills/{skill_name}" },
+    { "id": "opencode", "path_template": ".config/opencode/skills/{skill_name}" },
+    { "id": "copilot", "path_template": ".copilot/skills/{skill_name}" },
+    { "id": "agents", "path_template": ".agents/skills/{skill_name}" },
+    { "id": "cursor", "path_template": ".cursor/skills/{skill_name}" },
+    { "id": "kiro", "path_template": ".kiro/steering/{skill_name}.md", "transform": "kiro-steering" }
+  ]
+}

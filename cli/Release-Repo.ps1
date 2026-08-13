@@ -67,6 +67,7 @@ function Resolve-PublishTargetRepo {
 #   skills/<name>/**              (the skill's own contents, nested - not flat)
 #   cli/lib/skill-payload.sh
 #   cli/lib/skill-payload.ps1
+#   cli/agent-targets.json        (US-24 - manifest read by skill-payload.{sh,ps1})
 # Pure filesystem staging - no zip/Compress-Archive step here, safe to unit
 # test in isolation. Mirrors the monorepo's own layout (US-17 D4) so
 # `install_skills`'s `skills/<name>` resolution branch succeeds after
@@ -86,6 +87,7 @@ function New-ReleaseStagingPayload {
     Copy-Item -Path $SkillDir -Destination (Join-Path $StagingDir "skills\$SkillName") -Recurse -Force
     Copy-Item -Path (Join-Path $RepoRoot "cli\lib\skill-payload.sh") -Destination (Join-Path $StagingDir "cli\lib\skill-payload.sh") -Force
     Copy-Item -Path (Join-Path $RepoRoot "cli\lib\skill-payload.ps1") -Destination (Join-Path $StagingDir "cli\lib\skill-payload.ps1") -Force
+    Copy-Item -Path (Join-Path $RepoRoot "cli\agent-targets.json") -Destination (Join-Path $StagingDir "cli\agent-targets.json") -Force
 }
 
 # Compresses an already-staged release payload (see New-ReleaseStagingPayload)

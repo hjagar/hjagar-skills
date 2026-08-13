@@ -106,6 +106,57 @@ Assert-True "CRLF source: injected 'inclusion: always' line keeps CRLF terminato
 Remove-Item -Path $kiroSrc -Recurse -Force
 Remove-Item -Path $HomeDir -Recurse -Force
 
+# --- Get-AgentPaths (US-24 — manifest-driven agent path list) --------------
+
+$bapHome = Join-Path $env:TEMP ("install-unit-bap-home-" + [Guid]::NewGuid())
+New-Item -ItemType Directory -Path $bapHome -Force | Out-Null
+$HomeDir = $bapHome
+
+$bapResult = @(Get-AgentPaths "req-discovery") | Sort-Object
+$bapExpected = @(
+    (Join-Path $bapHome ".gemini\skills\req-discovery"),
+    (Join-Path $bapHome ".claude\skills\req-discovery"),
+    (Join-Path $bapHome ".config\opencode\skills\req-discovery"),
+    (Join-Path $bapHome ".copilot\skills\req-discovery"),
+    (Join-Path $bapHome ".agents\skills\req-discovery"),
+    (Join-Path $bapHome ".cursor\skills\req-discovery")
+) | Sort-Object
+Assert-Eq "Get-AgentPaths produces every manifest-listed directory" ($bapExpected -join '|') ($bapResult -join '|')
+
+$bapKiroMatch = @($bapResult | Where-Object { $_ -match "kiro" })
+Assert-Eq "Get-AgentPaths excludes the Kiro transform entry (handled separately)" 0 $bapKiroMatch.Count
+Assert-Eq "Get-AgentPaths emits exactly the 6 non-transform manifest entries" 6 $bapResult.Count
+Remove-Item -Path $bapHome -Recurse -Force
+
+# US-24 acceptance scenario 2: "new agent added" — appending one manifest
+# entry (no script edits) must make it appear in the returned path list, with
+# no other entry affected.
+$bapManifestTmp = Join-Path $env:TEMP ("install-unit-bap-manifest-" + [Guid]::NewGuid())
+New-Item -ItemType Directory -Path (Join-Path $bapManifestTmp "lib") -Force | Out-Null
+
+$origManifestPath = Join-Path $ScriptDir "..\agent-targets.json"
+$origManifest = Get-Content -Path $origManifestPath -Raw | ConvertFrom-Json
+$origManifest.targets += [PSCustomObject]@{ id = "newagent"; path_template = ".newagent/skills/{skill_name}" }
+$origManifest | ConvertTo-Json -Depth 5 | Set-Content -Path (Join-Path $bapManifestTmp "agent-targets.json")
+Copy-Item -Path $payloadLib -Destination (Join-Path $bapManifestTmp "lib\skill-payload.ps1") -Force
+
+$bapNewHome = Join-Path $env:TEMP ("install-unit-bap-newhome-" + [Guid]::NewGuid())
+New-Item -ItemType Directory -Path $bapNewHome -Force | Out-Null
+$bapManifestTmpWin = $bapManifestTmp
+$bapNewHomeWin = $bapNewHome
+$newAgentOutput = pwsh -NoProfile -Command "
+    . '$bapManifestTmpWin\lib\skill-payload.ps1' | Out-Null
+    `$HomeDir = '$bapNewHomeWin'
+    (Get-AgentPaths 'req-discovery') -join [Environment]::NewLine
+" 2>&1 | Out-String
+$newAgentLines = @($newAgentOutput -split "`r?`n" | Where-Object { $_ -ne '' })
+$newAgentMatch = @($newAgentLines | Where-Object { $_ -match [regex]::Escape("newagent\skills\req-discovery") })
+Assert-Eq "new agent added via one manifest line appears with no script edits" 1 $newAgentMatch.Count
+Assert-Eq "existing 6 entries are untouched (7 total after the new line)" 7 $newAgentLines.Count
+
+Remove-Item -Path $bapManifestTmp -Recurse -Force
+Remove-Item -Path $bapNewHome -Recurse -Force
+
 Write-Host ""
 Write-Host "install-unit (ps1): $script:Pass passed, $script:Fail failed"
 if ($script:Fail -gt 0) { exit 1 } else { exit 0 }

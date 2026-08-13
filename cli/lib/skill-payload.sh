@@ -26,20 +26,50 @@
 # from the newly-downloaded release ZIP alongside scripts/ and tests/, then sources the
 # refreshed copy.
 
-# Builds the AGENT_PATHS array (static entries + dynamic .claude-* multi-account
-# discovery). Requires $HOME to be set, which it always is.
-# Builds the AGENT_PATHS array (static entries + dynamic .claude-* multi-account
-# discovery). Requires $HOME to be set, which it always is.
+# This file's own directory, captured at source time (works whether it is
+# sourced via `.`/`source` from install.sh/update.sh or directly by a test).
+# The manifest always lives one directory up from lib/, in both local mode
+# (a real checkout: cli/lib/skill-payload.sh next to cli/agent-targets.json)
+# and global mode (the release ZIP mirrors the same cli/lib + cli/ layout
+# inside $CENTRAL_DIR - see stage_release_payload in Release-Repo.sh).
+_SKILL_PAYLOAD_LIB_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+AGENT_TARGETS_MANIFEST="$(cd "$_SKILL_PAYLOAD_LIB_DIR/.." && pwd)/agent-targets.json"
+
+# Builds the AGENT_PATHS array from cli/agent-targets.json (static entries,
+# parsed via python3) + dynamic .claude-* multi-account discovery (still
+# runtime logic - a manifest can't enumerate accounts it can't see ahead of
+# time). Requires $HOME to be set, which it always is. Manifest entries
+# carrying a "transform" field (currently only Kiro) are deliberately
+# excluded - those are handled by their own dedicated writer function
+# (new_kiro_steering_file), not the generic folder+SKILL.md copy this array
+# feeds into.
 build_agent_paths() {
     local skill_name="${1:-us-refinement}"
-    AGENT_PATHS=(
-        "$HOME/.gemini/skills/$skill_name"
-        "$HOME/.claude/skills/$skill_name"
-        "$HOME/.config/opencode/skills/$skill_name"
-        "$HOME/.copilot/skills/$skill_name"
-        "$HOME/.agents/skills/$skill_name"
-        "$HOME/.cursor/skills/$skill_name"
-    )
+    AGENT_PATHS=()
+
+    if [ ! -f "$AGENT_TARGETS_MANIFEST" ]; then
+        echo "Error: agent-targets.json manifest not found at $AGENT_TARGETS_MANIFEST" >&2
+        exit 1
+    fi
+
+    local rel_path
+    while IFS= read -r rel_path; do
+        # Strip a trailing \r: a Windows-native python3 (as opposed to a
+        # WSL/git-bash one) writes stdout in text mode, translating each
+        # line's \n to \r\n - `read -r` only strips the \n delimiter, so the
+        # \r would otherwise survive as part of the path.
+        rel_path="${rel_path%$'\r'}"
+        [ -n "$rel_path" ] && AGENT_PATHS+=("$HOME/$rel_path")
+    done < <(python3 -c '
+import json, sys
+manifest_path, skill_name = sys.argv[1], sys.argv[2]
+with open(manifest_path, encoding="utf-8") as f:
+    data = json.load(f)
+for entry in data.get("targets", []):
+    if entry.get("transform"):
+        continue
+    print(entry["path_template"].replace("{skill_name}", skill_name))
+' "$AGENT_TARGETS_MANIFEST" "$skill_name")
 
     for d in "$HOME"/.claude-*; do
         if [ -d "$d" ]; then

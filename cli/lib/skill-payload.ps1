@@ -25,14 +25,39 @@
 # the newly-downloaded release ZIP alongside scripts/ and tests/, then dot-sources the
 # refreshed copy.
 
+# Builds the agent path list from cli/agent-targets.json (static entries,
+# parsed via ConvertFrom-Json) + dynamic .claude-* multi-account discovery
+# (still runtime logic - a manifest can't enumerate accounts it can't see
+# ahead of time). $PSScriptRoot resolves to THIS file's own directory
+# regardless of caller scope (dot-sourcing runs this file's statements in the
+# caller's scope, but automatic variables like $PSScriptRoot stay bound to
+# the file that defines the currently-executing code) - the manifest always
+# lives one directory up from lib/, in both local mode (a real checkout:
+# cli\lib\skill-payload.ps1 next to cli\agent-targets.json) and global mode
+# (the release ZIP mirrors the same cli\lib + cli\ layout inside
+# $CentralDir - see New-ReleaseStagingPayload in Release-Repo.ps1). Manifest
+# entries carrying a "transform" property (currently only Kiro) are
+# deliberately excluded - those are handled by their own dedicated writer
+# function (New-KiroSteeringFile), not the generic folder+SKILL.md copy this
+# list feeds into.
 function Get-AgentPaths ($skillName = "us-refinement") {
     $paths = [System.Collections.Generic.List[string]]::new()
-    $paths.Add((Join-Path $HomeDir ".gemini\skills\$skillName"))
-    $paths.Add((Join-Path $HomeDir ".claude\skills\$skillName"))
-    $paths.Add((Join-Path $HomeDir ".config\opencode\skills\$skillName"))
-    $paths.Add((Join-Path $HomeDir ".copilot\skills\$skillName"))
-    $paths.Add((Join-Path $HomeDir ".agents\skills\$skillName"))
-    $paths.Add((Join-Path $HomeDir ".cursor\skills\$skillName"))
+
+    $manifestPath = Join-Path (Split-Path -Parent $PSScriptRoot) "agent-targets.json"
+    if (-not (Test-Path $manifestPath)) {
+        Write-Error "Error: agent-targets.json manifest not found at $manifestPath"
+        exit 1
+    }
+    $manifest = Get-Content -Path $manifestPath -Raw | ConvertFrom-Json
+
+    foreach ($entry in $manifest.targets) {
+        if ($entry.transform) {
+            continue
+        }
+        $relPath = $entry.path_template -replace '\{skill_name\}', $skillName
+        $relPath = $relPath -replace '/', [System.IO.Path]::DirectorySeparatorChar
+        $paths.Add((Join-Path $HomeDir $relPath))
+    }
 
     if (Test-Path $HomeDir) {
         Get-ChildItem -Path $HomeDir -Filter ".claude-*" -Directory -ErrorAction SilentlyContinue | ForEach-Object {

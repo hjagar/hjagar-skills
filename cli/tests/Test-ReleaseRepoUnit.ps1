@@ -96,6 +96,7 @@ Set-Content -Path (Join-Path $fakeSkillDir "SKILL.md") -Value "# req-discovery S
 Set-Content -Path (Join-Path $fakeSkillDir "assets\example.txt") -Value "asset content"
 Set-Content -Path (Join-Path $fakeRepoRoot "cli\lib\skill-payload.sh") -Value "#!/usr/bin/env bash"
 Set-Content -Path (Join-Path $fakeRepoRoot "cli\lib\skill-payload.ps1") -Value "# ps1 payload"
+Set-Content -Path (Join-Path $fakeRepoRoot "cli\agent-targets.json") -Value '{"targets":[]}'
 
 New-ReleaseStagingPayload -RepoRoot $fakeRepoRoot -SkillName "req-discovery" -SkillDir $fakeSkillDir -StagingDir $stagingDir
 
@@ -111,6 +112,9 @@ Assert-Eq "staged skill-payload.sh content matches source" `
     (Get-Content (Join-Path $fakeRepoRoot "cli\lib\skill-payload.sh") -Raw) (Get-Content (Join-Path $stagingDir "cli\lib\skill-payload.sh") -Raw)
 Assert-True "no flat top-level SKILL.md (legacy flat-zip regression not present)" `
     (-not (Test-Path (Join-Path $stagingDir "SKILL.md")))
+Assert-True "cli/agent-targets.json staged (US-24 manifest)" (Test-Path (Join-Path $stagingDir "cli\agent-targets.json"))
+Assert-Eq "staged agent-targets.json content matches source" `
+    (Get-Content (Join-Path $fakeRepoRoot "cli\agent-targets.json") -Raw) (Get-Content (Join-Path $stagingDir "cli\agent-targets.json") -Raw)
 
 # Triangulation: a second, differently-named skill with different content
 # stages correctly too, and New-ReleaseStagingPayload leaves no
@@ -141,6 +145,7 @@ $zip.Dispose()
 Assert-True "zip contains skills/<name>/SKILL.md" ($entries -contains "skills/tc-generator/SKILL.md")
 Assert-True "zip contains cli/lib/skill-payload.sh" ($entries -contains "cli/lib/skill-payload.sh")
 Assert-True "zip contains cli/lib/skill-payload.ps1" ($entries -contains "cli/lib/skill-payload.ps1")
+Assert-True "zip contains cli/agent-targets.json (US-24 manifest)" ($entries -contains "cli/agent-targets.json")
 Assert-True "no bare top-level SKILL.md entry (legacy flat-zip regression prevented)" `
     (-not ($entries -contains "SKILL.md"))
 
