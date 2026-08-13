@@ -3,10 +3,15 @@
   "validator": "scripts/validate_onboarding.py",
   "fixtures": {
     "valid": [
-      "tests/mock_valid_onboarding.md"
+      "tests/mock_valid_onboarding.md",
+      "tests/mock_valid_persistence_onboarding.md"
     ],
     "invalid": [
-      "tests/mock_invalid_onboarding.md"
+      "tests/mock_invalid_onboarding.md",
+      "tests/mock_invalid_persistence_no_receipt.md",
+      "tests/mock_invalid_persistence_freetext_log.md",
+      "tests/mock_invalid_persistence_no_chapters.md",
+      "tests/mock_invalid_persistence_deleted_not_inactive.md"
     ]
   }
 }
