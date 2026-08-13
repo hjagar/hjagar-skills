@@ -1,0 +1,11 @@
+#!/usr/bin/env bash
+# Fake `python3` shim for cli/tests/*. On this dev environment, the real
+# `python3` PATH entry resolves to a broken Windows Store app-execution-alias
+# stub, not a real interpreter - shadow it with a thin wrapper that delegates
+# to the working `python` binary instead (see the identical fixture at
+# cli/tests/fixtures/release-bin/python3 for Release-Repo.sh's tests).
+# NOT a behavior fake: forwards args/stdio/exit code unchanged to a REAL
+# Python interpreter found on the (unrestricted) inherited PATH. Needed by
+# build_agent_paths (US-24) - install.sh/update.sh call it to parse
+# cli/agent-targets.json.
+exec python "$@"

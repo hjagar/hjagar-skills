@@ -15,6 +15,7 @@ RELEASE_REPO_SH_SRC="$REPO_ROOT/cli/Release-Repo.sh"
 QUALITY_GATE_SRC="$REPO_ROOT/cli/lib/quality-gate.sh"
 PAYLOAD_SH_SRC="$REPO_ROOT/cli/lib/skill-payload.sh"
 PAYLOAD_PS1_SRC="$REPO_ROOT/cli/lib/skill-payload.ps1"
+AGENT_TARGETS_SRC="$REPO_ROOT/cli/agent-targets.json"
 FIXTURES_BIN="$SCRIPT_DIR/fixtures/release-bin"
 
 PASS=0
@@ -63,6 +64,7 @@ EOF
     cp "$QUALITY_GATE_SRC" "$dir/cli/lib/quality-gate.sh"
     cp "$PAYLOAD_SH_SRC" "$dir/cli/lib/skill-payload.sh"
     cp "$PAYLOAD_PS1_SRC" "$dir/cli/lib/skill-payload.ps1"
+    cp "$AGENT_TARGETS_SRC" "$dir/cli/agent-targets.json"
     cp "$RELEASE_REPO_SH_SRC" "$dir/cli/Release-Repo.sh"
 
     (

@@ -9,7 +9,11 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd "$SCRIPT_DIR/../.." && pwd)"
 UPDATE_SH="$REPO_ROOT/cli/update.sh"
 FIXTURES="$SCRIPT_DIR/fixtures"
-RESTRICTED_PATH="$FIXTURES/bin:/usr/bin:/mingw64/bin"
+# See test-install-integration.sh's identical RESTRICTED_PATH comment (US-24
+# — build_agent_paths now shells out to python3 to parse
+# cli/agent-targets.json; its fixture shim needs a real interpreter's dir).
+REAL_PYTHON_DIR="$(dirname "$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)" 2>/dev/null || true)"
+RESTRICTED_PATH="$FIXTURES/bin:/usr/bin:/mingw64/bin${REAL_PYTHON_DIR:+:$REAL_PYTHON_DIR}"
 
 PASS=0
 FAIL=0

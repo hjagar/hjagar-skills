@@ -44,6 +44,7 @@ resolve_publish_target_repo() {
 #   skills/<name>/**              (the skill's own contents, nested - not flat)
 #   cli/lib/skill-payload.sh
 #   cli/lib/skill-payload.ps1
+#   cli/agent-targets.json        (US-24 - manifest read by skill-payload.{sh,ps1})
 # Pure filesystem staging - no `zip` binary required, safe to unit test
 # without it. Mirrors the monorepo's own layout (US-17 D4) so
 # `install_skills`'s `skills/<name>` resolution branch succeeds after
@@ -57,6 +58,7 @@ stage_release_payload() {
     cp -r "$skill_dir" "$staging_dir/skills/$skill_name"
     cp "$repo_root/cli/lib/skill-payload.sh" "$staging_dir/cli/lib/skill-payload.sh"
     cp "$repo_root/cli/lib/skill-payload.ps1" "$staging_dir/cli/lib/skill-payload.ps1"
+    cp "$repo_root/cli/agent-targets.json" "$staging_dir/cli/agent-targets.json"
 }
 
 # Zips an already-staged release payload (see stage_release_payload) into

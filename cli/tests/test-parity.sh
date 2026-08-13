@@ -177,6 +177,32 @@ assert_eq "bash and ps1 inject the same content on line 2" "$BASH_KIRO_LINE2" "$
 
 rm -rf "$KIRO_SRC" "$BASH_KIRO_HOME" "$PS1_KIRO_HOME"
 
+# ---------------------------------------------------------------------------
+# US-24 — build_agent_paths (bash) vs Get-AgentPaths (ps1) produce the same
+# set of target directories from the same cli/agent-targets.json manifest.
+# ---------------------------------------------------------------------------
+BAP_HOME="$(mktemp -d)"
+BAP_HOME_WIN="$(to_win_path "$BAP_HOME")"
+
+BASH_AGENT_PATHS="$(
+    HOME="$BAP_HOME"
+    # shellcheck disable=SC1090
+    source "$REPO_ROOT/cli/lib/skill-payload.sh"
+    build_agent_paths "req-discovery"
+    printf '%s\n' "${AGENT_PATHS[@]}" | sed "s#^$BAP_HOME/##" | sort
+)"
+
+PS1_AGENT_PATHS="$(pwsh -NoProfile -Command "
+    . '$SCRIPT_DIR_WIN\..\lib\skill-payload.ps1' | Out-Null
+    \$HomeDir = '$BAP_HOME_WIN'
+    (Get-AgentPaths 'req-discovery') | ForEach-Object { (\$_.Substring(\$HomeDir.Length + 1)) -replace '\\\\', '/' } | Sort-Object
+" 2>/dev/null | tr -d '\r' | sed '/^$/d' | sort)"
+
+assert_eq "build_agent_paths / Get-AgentPaths agree on the manifest-driven target set" \
+    "$BASH_AGENT_PATHS" "$PS1_AGENT_PATHS"
+
+rm -rf "$BAP_HOME"
+
 echo ""
 echo "parity: $PASS passed, $FAIL failed"
 [ "$FAIL" -eq 0 ]

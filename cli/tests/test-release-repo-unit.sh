@@ -109,6 +109,7 @@ echo "# req-discovery SKILL.md" > "$FAKE_SKILL_DIR/SKILL.md"
 echo "asset content" > "$FAKE_SKILL_DIR/assets/example.txt"
 echo "#!/usr/bin/env bash" > "$FAKE_REPO_ROOT/cli/lib/skill-payload.sh"
 echo "# ps1 payload" > "$FAKE_REPO_ROOT/cli/lib/skill-payload.ps1"
+echo '{"targets":[]}' > "$FAKE_REPO_ROOT/cli/agent-targets.json"
 
 stage_release_payload "$FAKE_REPO_ROOT" "req-discovery" "$FAKE_SKILL_DIR" "$STAGING_DIR"
 
@@ -126,6 +127,10 @@ assert_eq "staged skill-payload.sh content matches source" \
     "$(cat "$FAKE_REPO_ROOT/cli/lib/skill-payload.sh")" "$(cat "$STAGING_DIR/cli/lib/skill-payload.sh")"
 assert_true "no flat top-level SKILL.md (legacy flat-zip regression not present)" \
     "$([ ! -f "$STAGING_DIR/SKILL.md" ] && echo true || echo false)"
+assert_true "cli/agent-targets.json staged (US-24 manifest)" \
+    "$([ -f "$STAGING_DIR/cli/agent-targets.json" ] && echo true || echo false)"
+assert_eq "staged agent-targets.json content matches source" \
+    "$(cat "$FAKE_REPO_ROOT/cli/agent-targets.json")" "$(cat "$STAGING_DIR/cli/agent-targets.json")"
 
 # Triangulation: a second, differently-named skill with different content
 # stages correctly too, and stage_release_payload's rm -rf leaves no
@@ -154,6 +159,7 @@ if command -v zip &>/dev/null && command -v unzip &>/dev/null; then
     assert_contains "zip contains skills/<name>/SKILL.md" "$ZIP_LISTING" "skills/tc-generator/SKILL.md"
     assert_contains "zip contains cli/lib/skill-payload.sh" "$ZIP_LISTING" "cli/lib/skill-payload.sh"
     assert_contains "zip contains cli/lib/skill-payload.ps1" "$ZIP_LISTING" "cli/lib/skill-payload.ps1"
+    assert_contains "zip contains cli/agent-targets.json (US-24 manifest)" "$ZIP_LISTING" "cli/agent-targets.json"
 
     # Legacy flat-zip regression check: the old `zip -r . ` behavior (run from
     # inside $SKILL_DIR) would list a bare top-level "SKILL.md", never

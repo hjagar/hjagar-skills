@@ -83,6 +83,7 @@ echo "# parity-skill SKILL.md" > "$FAKE_SKILL_DIR/SKILL.md"
 echo "asset content" > "$FAKE_SKILL_DIR/assets/example.txt"
 echo "#!/usr/bin/env bash" > "$FAKE_REPO_ROOT/cli/lib/skill-payload.sh"
 echo "# ps1 payload" > "$FAKE_REPO_ROOT/cli/lib/skill-payload.ps1"
+echo '{"targets":[]}' > "$FAKE_REPO_ROOT/cli/agent-targets.json"
 
 (
     # shellcheck disable=SC1090
@@ -102,8 +103,8 @@ pwsh -NoProfile -Command "
 BASH_LISTING="$(cd "$STAGING_BASH" && find . -type f | sed 's#^\./##' | LC_ALL=C sort)"
 PS1_LISTING="$(cd "$STAGING_PS1" && find . -type f | sed 's#^\./##' | LC_ALL=C sort)"
 
-assert_eq "staged payload file set: bash produces the expected 4 files" \
-    "$(printf 'cli/lib/skill-payload.ps1\ncli/lib/skill-payload.sh\nskills/parity-skill/SKILL.md\nskills/parity-skill/assets/example.txt')" \
+assert_eq "staged payload file set: bash produces the expected 5 files" \
+    "$(printf 'cli/agent-targets.json\ncli/lib/skill-payload.ps1\ncli/lib/skill-payload.sh\nskills/parity-skill/SKILL.md\nskills/parity-skill/assets/example.txt' | LC_ALL=C sort)" \
     "$BASH_LISTING"
 assert_eq "staged payload file set: bash and ps1 agree" "$BASH_LISTING" "$PS1_LISTING"
 

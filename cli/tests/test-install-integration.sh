@@ -56,7 +56,15 @@ assert_eq() {
 # Restricted PATH: fake tools first (shadow real curl in /mingw64/bin), then
 # real core utils (git, mkdir, sed, unzip, ...) — but NEVER the real GitHub
 # CLI install dir, so gh-absent scenarios see a genuinely missing `gh`.
-RESTRICTED_PATH="$FIXTURES/bin:/usr/bin:/mingw64/bin"
+# The fixture's python3 shim (US-24 — build_agent_paths now shells out to
+# python3 to parse cli/agent-targets.json) delegates to a real `python3`/
+# `python` interpreter, since on some dev machines the PATH's own `python3`
+# entry is a broken Windows Store app-execution-alias stub - so the real
+# interpreter's directory (resolved from the *unrestricted* outer PATH, once,
+# before sandboxing) is appended last, narrowly, without exposing the rest of
+# the real PATH (gh in particular must stay unreachable for gh-absent tests).
+REAL_PYTHON_DIR="$(dirname "$(command -v python3 2>/dev/null || command -v python 2>/dev/null || true)" 2>/dev/null || true)"
+RESTRICTED_PATH="$FIXTURES/bin:/usr/bin:/mingw64/bin${REAL_PYTHON_DIR:+:$REAL_PYTHON_DIR}"
 
 sandbox_home() { mktemp -d; }
 

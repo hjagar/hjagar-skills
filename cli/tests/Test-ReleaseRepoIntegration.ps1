@@ -14,6 +14,7 @@ $ReleaseRepoPs1Src = Join-Path $RepoRoot "cli\Release-Repo.ps1"
 $QualityGateSrc = Join-Path $RepoRoot "cli\lib\quality-gate.ps1"
 $PayloadShSrc = Join-Path $RepoRoot "cli\lib\skill-payload.sh"
 $PayloadPs1Src = Join-Path $RepoRoot "cli\lib\skill-payload.ps1"
+$AgentTargetsSrc = Join-Path $RepoRoot "cli\agent-targets.json"
 $FixturesBin = Join-Path $ScriptDir "fixtures\release-bin"
 
 $script:Pass = 0
@@ -56,6 +57,7 @@ Fixture body.
     Copy-Item -Path $QualityGateSrc -Destination (Join-Path $Dir "cli\lib\quality-gate.ps1") -Force
     Copy-Item -Path $PayloadShSrc -Destination (Join-Path $Dir "cli\lib\skill-payload.sh") -Force
     Copy-Item -Path $PayloadPs1Src -Destination (Join-Path $Dir "cli\lib\skill-payload.ps1") -Force
+    Copy-Item -Path $AgentTargetsSrc -Destination (Join-Path $Dir "cli\agent-targets.json") -Force
     Copy-Item -Path $ReleaseRepoPs1Src -Destination (Join-Path $Dir "cli\Release-Repo.ps1") -Force
 
     Push-Location $Dir
