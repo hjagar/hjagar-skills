@@ -3,10 +3,13 @@
   "validator": "scripts/validate_req_discovery.py",
   "fixtures": {
     "valid": [
-      "tests/mock_valid_req_discovery.md"
+      "tests/mock_valid_req_discovery.md",
+      "tests/mock_valid_req_discovery_prompt_mode.md"
     ],
     "invalid": [
-      "tests/mock_invalid_req_discovery.md"
+      "tests/mock_invalid_req_discovery.md",
+      "tests/mock_invalid_req_discovery_prompt_mode_context.md",
+      "tests/mock_invalid_req_discovery_prompt_mode_resolution.md"
     ]
   }
 }

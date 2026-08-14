@@ -7,7 +7,30 @@ ZERO_CANDIDATE_MESSAGES = [
     "no se encontraron requisitos candidatos en esta transcripción."
 ]
 
-def validate(file_path):
+# Source Detection gate modes (see SKILL.md Decision Gates). Speaker/timestamp
+# framing is only allowed in transcript mode; prompt mode is single-author.
+VALID_MODES = ('transcript', 'prompt')
+
+# Matches transcript-style attribution such as "(Priya, 00:01:19)".
+SPEAKER_TIMESTAMP_RE = re.compile(r'\([^()]*,\s*\d{1,2}:\d{2}(:\d{2})?\)')
+
+
+def resolve_mode(explicit_mode, file_path):
+    if explicit_mode:
+        mode = explicit_mode.strip().lower()
+        if mode not in VALID_MODES:
+            raise ValueError(f"Unknown mode '{explicit_mode}'. Expected one of {VALID_MODES}.")
+        return mode
+
+    if file_path:
+        lower = file_path.lower()
+        if 'prompt_mode' in lower or 'prompt-mode' in lower:
+            return 'prompt'
+
+    return 'transcript'
+
+
+def validate(file_path, mode='transcript'):
     try:
         with open(file_path, 'r', encoding='utf-8') as f:
             content = f.read()
@@ -15,19 +38,19 @@ def validate(file_path):
         print(f"Error: Unable to read file {file_path}. Details: {e}")
         return False
 
-    return validate_content(content, f"Validating req-discovery file: {file_path}")
+    return validate_content(content, f"Validating req-discovery file: {file_path}", mode)
 
-def validate_stdin():
+def validate_stdin(mode='transcript'):
     try:
         content = sys.stdin.buffer.read().decode('utf-8')
     except Exception as e:
         print(f"Error: Unable to read content from stdin. Details: {e}")
         return False
 
-    return validate_content(content, "Validating req-discovery content from stdin")
+    return validate_content(content, "Validating req-discovery content from stdin", mode)
 
-def validate_content(content, banner):
-    print(banner)
+def validate_content(content, banner, mode='transcript'):
+    print(f"{banner} (mode: {mode})")
 
     stripped_content = content.strip()
 
@@ -110,6 +133,20 @@ def validate_content(content, banner):
         if 'Possible match' in fields and not fields['Possible match']:
             errors.append(f"Candidate {block_identifier} '**Possible match:**' field is present but empty.")
 
+        # Prompt mode is single-author: Context/Resolution must not carry
+        # transcript-style speaker/timestamp framing (see SKILL.md Output Contract).
+        if mode == 'prompt':
+            if 'Context' in fields and SPEAKER_TIMESTAMP_RE.search(fields['Context']):
+                errors.append(
+                    f"Candidate {block_identifier} '**Context:**' field contains a speaker/timestamp "
+                    "reference, which is not allowed in prompt mode (expected '<paraphrase of the note>')."
+                )
+            if 'Resolution' in fields and re.search(r'speaker', fields['Resolution'], re.IGNORECASE):
+                errors.append(
+                    f"Candidate {block_identifier} '**Resolution:**' field references speakers, which is "
+                    "not allowed in prompt mode (expected note-revisit wording without speaker framing)."
+                )
+
         # Validate Hidden English Summary Comment
         comment_match = re.search(r"<!--\s*en-summary:\s*(.+?)\s*-->", block, re.DOTALL)
         if not comment_match or not comment_match.group(1).strip():
@@ -127,13 +164,20 @@ def validate_content(content, banner):
     return True
 
 if __name__ == '__main__':
-    if len(sys.argv) >= 2:
-        success = validate(sys.argv[1])
-    elif not sys.stdin.isatty():
-        success = validate_stdin()
-    else:
-        print("Usage: python validate_req_discovery.py <path_to_markdown_file>")
-        print("       or pipe content via stdin: cat file.md | python validate_req_discovery.py")
+    try:
+        if len(sys.argv) >= 2:
+            file_path = sys.argv[1]
+            explicit_mode = sys.argv[2] if len(sys.argv) >= 3 else None
+            success = validate(file_path, resolve_mode(explicit_mode, file_path))
+        elif not sys.stdin.isatty():
+            success = validate_stdin(resolve_mode(None, None))
+        else:
+            print("Usage: python validate_req_discovery.py <path_to_markdown_file> [transcript|prompt]")
+            print("       or pipe content via stdin: cat file.md | python validate_req_discovery.py")
+            print("       Mode defaults to 'transcript', or is inferred from a '_prompt_mode' filename.")
+            sys.exit(1)
+    except ValueError as e:
+        print(f"Error: {e}")
         sys.exit(1)
 
     sys.exit(0 if success else 1)
