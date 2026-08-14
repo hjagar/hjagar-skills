@@ -1,8 +1,8 @@
-# Guía de Migración, Limpieza y Mantenimiento de Repositorios Espejo (Mirror Repos)
+# Guía de Migración, Limpieza y Mantenimiento de Repositorios Espejo (Mirror Repos) — ARCHIVADA
 
-> **Propósito:** Documentar los pasos exactos para configurar la sincronización por CI y mantener los repositorios espejo que siguen activos (`hjagar/res-onboarding`, `hjagar/tc-generator`), archivar los que dejaron de tener función (`hjagar/us-refinement`, `hjagar/req-discovery`), y definir la estrategia de releases y distribución real del monorepo `hjagar-skills` (change `US17-global-install-release-resolution`).
+> ⚠️ **SUPERADA (change US-36):** La sincronización por `git subtree push` hacia los 4 repos espejo (`hjagar/us-refinement`, `hjagar/req-discovery`, `hjagar/res-onboarding`, `hjagar/tc-generator`) fue **retirada por completo**. Los 4 workflows `.github/workflows/sync-*.yml` fueron eliminados. Ningún mirror se sincroniza más desde este monorepo. Motivo: intentar re-habilitar el sync contra `tc-generator` (el único mirror que llegó a hacerse público) expuso problemas de credenciales sin resolver, y ninguno de los 4 mirrors tenía de todos modos un camino de instalación funcional propio — la única fuente de instalación real siempre fue (o será) `hjagar-skills` mismo, vía el instalador global resuelto por tag `<skill>-v*` (change `US17-global-install-release-resolution`, Sección 7 de este doc). Los mirrors existentes **no fueron tocados** (no se archivaron, no cambió su visibilidad) — simplemente dejaron de recibir actualizaciones. El resto de este documento (Secciones 1-6) describe la infraestructura de sync retirada; se conserva como referencia histórica, no como procedimiento vigente. Solo la Sección 7 (estrategia de releases del monorepo) sigue aplicando.
 
-> ⚠️ **ACTUALIZADO (change US17-global-install-release-resolution):** Este documento describía originalmente un plan de "limpiar y mantener" los 4 repos espejo, más una estrategia de release con un bundle separado `hjagar-skills-all.zip` y un flag `--all`. Ese plan quedó **reemplazado**. Motivo: una vez que el instalador global resuelve releases directo contra `hjagar/hjagar-skills` (monorepo, público) filtrando por prefijo de tag `<skill>-v*`, los mirrors dejan de tener la única función que justificaba mantenerlos (ser el target público de descarga). Ver Sección 6.
+> **Propósito original (ya no vigente):** Documentar los pasos exactos para configurar la sincronización por CI y mantener los repositorios espejo, archivar los que dejaron de tener función (`hjagar/us-refinement`, `hjagar/req-discovery`), y definir la estrategia de releases y distribución real del monorepo `hjagar-skills`.
 
 ---
 
@@ -13,10 +13,10 @@
 3. [Ejecución y Verificación de Sincronización Inicial](#3-ejecución-y-verificación-de-sincronización-inicial)
 4. [Aviso de Mirror Read-Only en los Repos Espejo](#4-aviso-de-mirror-read-only-en-los-repos-espejo)
 5. [Gobernanza y Redirección de Contribuciones](#5-gobernanza-y-redirección-de-contribuciones)
-6. [Archivado de Mirrors Públicos (`us-refinement`, `req-discovery`)](#6-archivado-de-mirrors-públicos-us-refinement-req-discovery)
+6. [(Histórico) Archivado de Mirrors Públicos — plan original, no ejecutado tal cual](#6-histórico-archivado-de-mirrors-públicos--plan-original-no-ejecutado-tal-cual)
 7. [Estrategia de Releases y Distribución (vigente)](#7-estrategia-de-releases-y-distribución-vigente)
 
-**Nota de alcance:** Las secciones 1-5 aplican únicamente a los mirrors que **siguen activos**: `hjagar/res-onboarding` y `hjagar/tc-generator`. `hjagar/us-refinement` y `hjagar/req-discovery` no se limpian ni se mantienen — se archivan (Sección 6).
+**Nota de alcance:** Las secciones 1-5 describen infraestructura de sync **retirada** (ver aviso al inicio del documento) — ninguno de los 4 mirrors se sincroniza más. Se conservan como referencia histórica.
 
 ---
 
@@ -29,7 +29,7 @@ Para que los workflows de GitHub Actions (`.github/workflows/sync-res-onboarding
 3. En el monorepo `hjagar-skills`, ir a **Settings -> Secrets and variables -> Actions -> New repository secret**.
 4. Crear el secret con el nombre **`GH_PAT`** (o `SYNC_PAT`) y pegar el valor del token.
 
-`sync-us-refinement.yml` y `sync-req-discovery.yml` se eliminan como parte del archivado (Sección 6) — no necesitan auth porque dejan de correr.
+Los 4 workflows `sync-*.yml` fueron eliminados por completo (US-36) — ninguno necesita auth porque ninguno corre más.
 
 ---
 
@@ -97,52 +97,11 @@ Para evitar que los usuarios modifiquen los repositorios espejo activos por erro
 
 ---
 
-## 6. Archivado de Mirrors Públicos (`us-refinement`, `req-discovery`)
+## 6. (Histórico) Archivado de Mirrors Públicos — plan original, no ejecutado tal cual
 
-Los únicos dos mirrors públicos reales (`hjagar/us-refinement`, `hjagar/req-discovery`) se **archivan**, no se limpian ni se mantienen. Su única función — ser el target de descarga del instalador global — la reemplaza directamente `hjagar/hjagar-skills` una vez público, resolviendo releases por prefijo de tag `<skill>-v*` (ver Sección 7 y el diseño de `US17-global-install-release-resolution`).
+Esta sección describía un plan de archivar solo 2 de los 4 mirrors (`hjagar/us-refinement`, `hjagar/req-discovery`) una vez cumplida una precondición (repo público + release + install.sh funcionando). Ese plan quedó **superado por US-36**: en vez de esperar la precondición y archivar solo 2, se cortó el sync de los 4 de una — ninguno tenía de todos modos un install path funcional propio (`tc-generator` llegó a hacerse público para probar, pero el sync seguía fallando por credenciales sin resolver).
 
-### Precondición (no saltear)
-
-Antes de archivar nada, deben estar verificados:
-1. `hjagar/hjagar-skills` pasado a público.
-2. Al menos un release real `<skill>-v*` cortado por skill vía el `Release-Repo.sh`/`.ps1` actualizado.
-3. `curl | bash install.sh` funcionando de punta a punta sin autenticación — tanto con `--skill <nombre>` como sin flags (instala todos).
-
-Archivar los mirrors antes de esto deja a los usuarios sin ninguna fuente de instalación funcionando.
-
-### Qué hace `gh repo archive`
-
-Pasa el repo a solo-lectura (sin push, issues, PRs ni releases nuevos), pero todo lo existente sigue visible y funcionando: releases, tags, stars, forks, watchers, URLs, clone. **Es reversible** (`gh repo unarchive <repo>` o el botón "Unarchive this repository" en Settings) — no es un delete ni un rename, la URL no cambia.
-
-### Pasos, en orden
-
-1. Confirmar la precondición de arriba.
-2. Eliminar los dos workflows de sync que ya no tienen destino válido (empujarían a un repo de solo-lectura):
-   ```bash
-   git rm .github/workflows/sync-us-refinement.yml .github/workflows/sync-req-discovery.yml
-   ```
-   Commit aparte, mecánico — revisable independiente de cualquier otro PR de código.
-3. Archivar cada mirror (requiere permisos de admin sobre ese repo):
-   ```bash
-   gh repo archive hjagar/us-refinement
-   gh repo archive hjagar/req-discovery
-   ```
-   `gh` pide confirmación por Enter en cada uno (o `--yes`/`-y` para scripting no interactivo).
-4. Verificar:
-   ```bash
-   gh repo view hjagar/us-refinement --json isArchived,isPrivate
-   gh repo view hjagar/req-discovery --json isArchived,isPrivate
-   ```
-   Ambos deben reportar `"isArchived": true`.
-5. No hace falta nada más — stars, forks, releases existentes y URLs de clone siguen funcionando en modo lectura. Los releases de skills de ahora en adelante viven únicamente en `hjagar/hjagar-skills`.
-
-### Para deshacer, si hiciera falta
-
-```bash
-gh repo unarchive hjagar/us-refinement
-gh repo unarchive hjagar/req-discovery
-```
-Instantáneo y reversible en ambas direcciones, sin pérdida de datos.
+**Estado actual:** los 4 mirrors (`us-refinement`, `req-discovery`, `res-onboarding`, `tc-generator`) siguen existiendo con su visibilidad original, sin archivar — solo dejaron de recibir sync. Archivarlos (`gh repo archive <repo>`, reversible con `gh repo unarchive <repo>`) sigue siendo una opción futura, pero ya no es parte de este flujo de trabajo; queda a criterio del maintainer si/cuándo hacerlo, sin precondición bloqueante.
 
 ---
 
