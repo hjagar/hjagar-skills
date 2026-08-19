@@ -4,7 +4,7 @@ description: "Trigger: user pastes a transcript or a single-author note/brain-du
 license: MIT
 metadata:
   author: hjagar
-  version: "1.1.9"
+  version: "1.1.10"
 ---
 
 # req-discovery
