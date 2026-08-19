@@ -4,7 +4,7 @@ description: "Trigger: /refine, /refinar, pasted As a/Como... stories, or GitHub
 license: MIT
 metadata:
   author: hjagar
-  version: "1.3.9"
+  version: "1.3.10"
 ---
 
 ## Activation Contract
