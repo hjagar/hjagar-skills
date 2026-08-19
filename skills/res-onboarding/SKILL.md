@@ -4,7 +4,7 @@ description: "Trigger: /onboarding, onboarding a un dev nuevo, arranca un junior
 license: MIT
 metadata:
   author: hjagar
-  version: "0.9.9"
+  version: "1.0.0"
 ---
 
 ## Activation Contract
