@@ -4,7 +4,7 @@ description: "Trigger: /tc, /test-cases, 'generar casos de test', 'armar un chec
 license: MIT
 metadata:
   author: hjagar
-  version: "1.0.0"
+  version: "0.9.9"
 ---
 
 ## Activation Contract
