@@ -32,12 +32,14 @@ Welcome to `hjagar-skills`, the central monorepo for production-grade agentic en
 
 ## 🚀 Included Skills
 
-| Skill Name | Description |
-| :--- | :--- |
-| **`req-discovery`** | Extracts structured requirement candidates and user stories from raw conversation transcripts or meeting notes. |
-| **`us-refinement`** | Refines raw user stories into INVEST-compliant specifications with Gherkin (`Given/When/Then`) acceptance criteria. |
-| **`res-onboarding`** | Onboards developers (junior/senior) into codebases with custom architecture guides, stack overviews, and setup instructions. |
-| **`tc-generator`** | Generates unit test guidance and QA manual test checklists covering happy paths, edge cases, and failure modes. |
+| Skill Name | Version | Description |
+| :--- | :--- | :--- |
+| **`req-discovery`** | [![req-discovery](https://img.shields.io/github/v/release/hjagar/hjagar-skills?filter=req-discovery-v*&label=&color=blue)](https://github.com/hjagar/hjagar-skills/releases?q=req-discovery) | Extracts structured requirement candidates and user stories from raw conversation transcripts or meeting notes. |
+| **`us-refinement`** | [![us-refinement](https://img.shields.io/github/v/release/hjagar/hjagar-skills?filter=us-refinement-v*&label=&color=blue)](https://github.com/hjagar/hjagar-skills/releases?q=us-refinement) | Refines raw user stories into INVEST-compliant specifications with Gherkin (`Given/When/Then`) acceptance criteria. |
+| **`res-onboarding`** | [![res-onboarding](https://img.shields.io/github/v/release/hjagar/hjagar-skills?filter=res-onboarding-v*&label=&color=blue)](https://github.com/hjagar/hjagar-skills/releases?q=res-onboarding) | Onboards developers (junior/senior) into codebases with custom architecture guides, stack overviews, and setup instructions. |
+| **`tc-generator`** | [![tc-generator](https://img.shields.io/github/v/release/hjagar/hjagar-skills?filter=tc-generator-v*&label=&color=blue)](https://github.com/hjagar/hjagar-skills/releases?q=tc-generator) | Generates unit test guidance and QA manual test checklists covering happy paths, edge cases, and failure modes. |
+
+> Each skill is versioned and released independently — a change to one skill does not bump the others. The tag prefix (`<skill>-vX.Y.Z`) is the source of truth; see [Release Management](#release-management).
 
 ---
 
@@ -161,12 +163,14 @@ Bienvenido a `hjagar-skills`, el monorepositorio centralizado de skills de ingen
 
 ## 🚀 Skills Incluidas
 
-| Nombre de Skill | Descripción |
-| :--- | :--- |
-| **`req-discovery`** | Extrae requerimientos candidatos e historias de usuario desde transcripciones de reuniones o notas brutas. |
-| **`us-refinement`** | Refina historias de usuario a especificaciones bajo el criterio INVEST con criterios de aceptación Gherkin (`Dado/Cuando/Entonces`). |
-| **`res-onboarding`** | Realiza el onboarding de desarrolladores (junior/senior) en codebases con guías de arquitectura, tecnologías y configuración. |
-| **`tc-generator`** | Genera guías de tests unitarios y checklists manuales de QA cubriendo camino feliz, casos de borde y errores. |
+| Nombre de Skill | Versión | Descripción |
+| :--- | :--- | :--- |
+| **`req-discovery`** | [![req-discovery](https://img.shields.io/github/v/release/hjagar/hjagar-skills?filter=req-discovery-v*&label=&color=blue)](https://github.com/hjagar/hjagar-skills/releases?q=req-discovery) | Extrae requerimientos candidatos e historias de usuario desde transcripciones de reuniones o notas brutas. |
+| **`us-refinement`** | [![us-refinement](https://img.shields.io/github/v/release/hjagar/hjagar-skills?filter=us-refinement-v*&label=&color=blue)](https://github.com/hjagar/hjagar-skills/releases?q=us-refinement) | Refina historias de usuario a especificaciones bajo el criterio INVEST con criterios de aceptación Gherkin (`Dado/Cuando/Entonces`). |
+| **`res-onboarding`** | [![res-onboarding](https://img.shields.io/github/v/release/hjagar/hjagar-skills?filter=res-onboarding-v*&label=&color=blue)](https://github.com/hjagar/hjagar-skills/releases?q=res-onboarding) | Realiza el onboarding de desarrolladores (junior/senior) en codebases con guías de arquitectura, tecnologías y configuración. |
+| **`tc-generator`** | [![tc-generator](https://img.shields.io/github/v/release/hjagar/hjagar-skills?filter=tc-generator-v*&label=&color=blue)](https://github.com/hjagar/hjagar-skills/releases?q=tc-generator) | Genera guías de tests unitarios y checklists manuales de QA cubriendo camino feliz, casos de borde y errores. |
+
+> Cada skill se versiona y se libera de forma independiente — un cambio en una skill no incrementa la versión de las demás. El prefijo del tag (`<skill>-vX.Y.Z`) es la fuente de verdad; ver [Gestión de Releases](#gestión-de-releases).
 
 ---
 
