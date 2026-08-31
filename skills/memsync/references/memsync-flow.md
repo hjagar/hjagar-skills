@@ -1,4 +1,4 @@
-# Checkpoint Flow — Implementation Detail
+# Memsync Flow — Implementation Detail
 
 Detailed command sequence backing `SKILL.md`'s Execution Steps. `engram` here is the standalone `engram` CLI (`engram sync`, not the `gentle-ai` CLI, which has no memory subcommand).
 
@@ -36,7 +36,7 @@ git status --porcelain | grep -v '^.. \.engram/'
 ```
 
 - Empty output → nothing else pending, go straight to commit with just the Engram file set.
-- Non-empty output → list the files to the user and ask (per Hard Rule 3): include them in this same commit, or checkpoint memory only and leave the rest untouched. Never assume either answer.
+- Non-empty output → list the files to the user and ask (per Hard Rule 3): include them in this same commit, or sync memory only and leave the rest untouched. Never assume either answer.
 
 ## 4. Commit & Push
 
@@ -45,7 +45,7 @@ Stage exactly the resolved set (Engram files, plus any user-approved extras):
 ```bash
 git add .engram/manifest.json .engram/chunks/<new-or-changed-file>
 # + any user-approved extra paths, added explicitly by path — never `git add -A`/`git add .`
-git commit -m "chore(memory): checkpoint session sync"
+git commit -m "chore(memory): sync session memory"
 git push origin "$branch"
 ```
 
