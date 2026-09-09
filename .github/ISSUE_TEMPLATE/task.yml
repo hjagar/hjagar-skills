@@ -1,0 +1,27 @@
+name: Task
+description: General task, feature, fix, or chore for hjagar-skills
+labels: []
+body:
+  - type: dropdown
+    id: type
+    attributes:
+      label: Type
+      options:
+        - feat
+        - fix
+        - docs
+        - refactor
+        - chore
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: >-
+        Full issue body. Accepts a story produced by the us-refinement skill
+        (As a/I want/So that + Given/When/Then acceptance criteria +
+        `<!-- [AI-DATA] -->` block) or plain free-form text for simple issues.
+      render: markdown
+    validations:
+      required: true
