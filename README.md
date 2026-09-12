@@ -71,8 +71,8 @@ Install a specific skill or all available skills across your AI agent environmen
 # Install a specific skill (e.g., us-refinement)
 curl -fsSL https://raw.githubusercontent.com/hjagar/hjagar-skills/main/cli/install.sh | bash -s -- --skill us-refinement
 
-# Install all skills in the monorepo
-curl -fsSL https://raw.githubusercontent.com/hjagar/hjagar-skills/main/cli/install.sh | bash -s -- --all
+# Install all skills in the monorepo (omitting --skill installs every skill with a published release)
+curl -fsSL https://raw.githubusercontent.com/hjagar/hjagar-skills/main/cli/install.sh | bash -s --
 ```
 
 #### **Windows (PowerShell)**
@@ -91,7 +91,9 @@ Keep installed skills synchronized with the latest releases:
 #### **Bash**
 ```bash
 ./cli/update.sh --skill us-refinement
-./cli/update.sh --all
+
+# Omitting --skill updates every skill already installed locally (update.sh has no --all flag)
+./cli/update.sh
 ```
 
 #### **PowerShell**
@@ -207,8 +209,8 @@ Instalá una skill específica o todas las disponibles en tu sistema:
 # Instalar una skill específica (ej. us-refinement)
 curl -fsSL https://raw.githubusercontent.com/hjagar/hjagar-skills/main/cli/install.sh | bash -s -- --skill us-refinement
 
-# Instalar todas las skills del monorepo
-curl -fsSL https://raw.githubusercontent.com/hjagar/hjagar-skills/main/cli/install.sh | bash -s -- --all
+# Instalar todas las skills del monorepo (omitiendo --skill se instalan todas las que tengan release publicado)
+curl -fsSL https://raw.githubusercontent.com/hjagar/hjagar-skills/main/cli/install.sh | bash -s --
 ```
 
 #### **Windows (PowerShell)**
@@ -227,7 +229,9 @@ Mantené las skills instaladas al día con las últimas versiones:
 #### **Bash**
 ```bash
 ./cli/update.sh --skill us-refinement
-./cli/update.sh --all
+
+# Omitiendo --skill se actualizan todas las skills ya instaladas localmente (update.sh no tiene flag --all)
+./cli/update.sh
 ```
 
 #### **PowerShell**
