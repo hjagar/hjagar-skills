@@ -1,0 +1,12 @@
+{
+  "skill": "commit-push",
+  "validator": "scripts/validate_skill_md.py",
+  "fixtures": {
+    "valid": [
+      "SKILL.md"
+    ],
+    "invalid": [
+      "tests/mock_invalid_skill.md"
+    ]
+  }
+}
