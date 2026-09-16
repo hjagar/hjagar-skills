@@ -326,17 +326,24 @@ function Main {
     $HomeDir = $env:USERPROFILE
     $CentralDir = Join-Path $HomeDir ".hjagar\skills"
 
-    $BaseDir = if ($Path) { Resolve-Path $Path } else {
-        if (Test-Path (Join-Path $PSScriptRoot "..\skills")) {
-            Resolve-Path (Join-Path $PSScriptRoot "..")
-        } else {
-            $PSScriptRoot
-        }
-    }
-
     # 3. Installation Logic
     if ($Local) {
         Write-Host "Installing in LOCAL Mode..."
+        # $BaseDir is only ever needed in LOCAL mode, so it's resolved here
+        # rather than unconditionally above. Resolving it unconditionally
+        # crashes GLOBAL-mode remote installs (`irm ... | iex`): with no
+        # backing script file, $PSScriptRoot is an empty string, and
+        # Join-Path rejects an empty -Path argument.
+        $BaseDir = if ($Path) {
+            Resolve-Path $Path
+        } elseif ($PSScriptRoot -and (Test-Path (Join-Path $PSScriptRoot "..\skills"))) {
+            Resolve-Path (Join-Path $PSScriptRoot "..")
+        } elseif ($PSScriptRoot) {
+            $PSScriptRoot
+        } else {
+            Write-Stderr "Error: -Local requires -Path when running from a piped/inline script (no script file to auto-detect from)."
+            exit 1
+        }
         Install-Skills $BaseDir $BaseDir
     } else {
         Write-Host "Installing in GLOBAL Mode..."

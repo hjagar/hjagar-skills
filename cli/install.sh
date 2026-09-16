@@ -319,20 +319,23 @@ main() {
     # 2. Path Setup
     CENTRAL_DIR="$HOME/.hjagar/skills"
 
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-    if [ -z "$SRC_DIR" ]; then
-        if [ -d "$SCRIPT_DIR/../skills" ]; then
-            BASE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
-        else
-            BASE_DIR="$SCRIPT_DIR"
-        fi
-    else
-        BASE_DIR="$SRC_DIR"
-    fi
-
     # 3. Installation Logic
     if [ "$LOCAL" = true ]; then
         echo "Installing in LOCAL Mode..."
+        # BASE_DIR is only ever needed in LOCAL mode, so it's resolved here
+        # rather than unconditionally above — keeps parity with install.ps1,
+        # where resolving the equivalent $BaseDir unconditionally crashes
+        # GLOBAL-mode remote installs (`irm ... | iex`, empty $PSScriptRoot).
+        SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+        if [ -z "$SRC_DIR" ]; then
+            if [ -d "$SCRIPT_DIR/../skills" ]; then
+                BASE_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+            else
+                BASE_DIR="$SCRIPT_DIR"
+            fi
+        else
+            BASE_DIR="$SRC_DIR"
+        fi
         install_skills "$BASE_DIR" "$BASE_DIR"
     else
         echo "Installing in GLOBAL Mode..."
