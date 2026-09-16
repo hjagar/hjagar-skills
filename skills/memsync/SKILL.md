@@ -4,7 +4,7 @@ description: "Trigger: /memsync, sincronizar memoria de sesion, guardar memoria 
 license: MIT
 metadata:
   author: hjagar
-  version: "0.1.0"
+  version: "1.0.0"
 ---
 
 ## Activation Contract
