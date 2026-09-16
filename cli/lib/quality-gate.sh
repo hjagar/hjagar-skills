@@ -45,6 +45,7 @@ run_quality_gate() {
 
             local vf
             while IFS= read -r vf; do
+                vf="${vf%$'\r'}"  # strip a trailing \r left by CRLF-mode python3 stdout on Windows
                 [[ -n "$vf" ]] || continue
                 local vf_path="$target_dir/$vf"
                 echo "    - Checking valid fixture $vf (expecting PASS)..."
@@ -56,6 +57,7 @@ run_quality_gate() {
 
             local ivf
             while IFS= read -r ivf; do
+                ivf="${ivf%$'\r'}"  # strip a trailing \r left by CRLF-mode python3 stdout on Windows
                 [[ -n "$ivf" ]] || continue
                 local ivf_path="$target_dir/$ivf"
                 echo "    - Checking invalid fixture $ivf (expecting FAIL)..."
@@ -105,6 +107,7 @@ run_quality_gate() {
 
             local vf
             while IFS= read -r vf; do
+                vf="${vf%$'\r'}"  # strip a trailing \r left by CRLF-mode python3 stdout on Windows
                 [[ -n "$vf" ]] || continue
                 local vf_path="$skill_dir/$vf"
                 echo "    - Checking valid fixture $vf (expecting PASS)..."
@@ -116,6 +119,7 @@ run_quality_gate() {
 
             local ivf
             while IFS= read -r ivf; do
+                ivf="${ivf%$'\r'}"  # strip a trailing \r left by CRLF-mode python3 stdout on Windows
                 [[ -n "$ivf" ]] || continue
                 local ivf_path="$skill_dir/$ivf"
                 echo "    - Checking invalid fixture $ivf (expecting FAIL)..."
