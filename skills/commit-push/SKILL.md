@@ -4,7 +4,7 @@ description: "Trigger: /commit-push, commit and push, commitea y subi, guarda y 
 license: MIT
 metadata:
   author: hjagar
-  version: "1.0.0"
+  version: "0.1.0"
 ---
 
 ## Activation Contract
