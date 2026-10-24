@@ -4,7 +4,9 @@
 
 Before refinement analysis, check available tools and select storage mode:
 
-1. **If Engram MCP server is ACTIVE**:
+The `openspec`, `hybrid`, and `hybrid-delayed` modes are SDD-only: offer or auto-select them ONLY when the user passed `--sdd`. Without `--sdd`, use `engram` when Engram is active, else console output, with no prompt and no `.agents/` / `openspec/` detection.
+
+1. **If Engram MCP server is ACTIVE** (with `--sdd`):
    Prompt the user to select preferred storage mode (default: `engram`):
    - `engram`: Memory-only in Engram SQLite DB, no local files created.
    - `openspec`: Local files under `openspec/changes/US{n}-{slug}/story.md`.
@@ -13,7 +15,7 @@ Before refinement analysis, check available tools and select storage mode:
 
    *Flexible Gate:* If the user says "go ahead", "skip it", or doesn't pick, proceed with `engram`.
 
-2. **If Engram MCP server is INACTIVE**:
+2. **If Engram MCP server is INACTIVE** (with `--sdd`):
    Check if workspace has active SDD structure (`.agents/` or `openspec/`).
    - If yes: default to `openspec`.
    - If no: default to standard console log output.
