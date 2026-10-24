@@ -57,7 +57,7 @@ scenarios:
 1. **Separation of Concerns:** Never include code blocks, implementation scripts, function signatures, or folder paths in the refined story text. Keep it in business language.
 2. **ID Generation for Pasted Stories:**
    - Reuse explicit `USxx` mentioned in text.
-   - Or query active storage (`Engram` / `openspec/changes/`) for `max + 1`.
+   - Or query active storage (`Engram`, or `openspec/changes/` in `--sdd` mode) for `max + 1`.
    - Or ask the user directly. Never fabricate an ID.
 3. **Conditional Assumptions Header:**
    - Omit `### Assumptions` entirely if no unresolved questions exist.
