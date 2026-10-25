@@ -13,6 +13,7 @@ import {
   validateSkillName,
   writeKiroSteering,
 } from './lib/skill-payload.mjs';
+import { REPO, downloadZip, extractSkillNames, extractZip, fetchTags, selectHighestTag } from './lib/release.mjs';
 
 const SCRIPT_DIR = path.dirname(fileURLToPath(import.meta.url));
 
@@ -129,10 +130,15 @@ async function gate(entries, options, io) {
   return null;
 }
 
-async function install(options, io) {
-  if (!options.local) {
-    throw new Error('Global install is not available yet; use --local -p <path>.');
+function installFromSource(skill, io) {
+  io.out(`Installing skill '${skill.name}'...`);
+  for (const agent of buildAgentPaths(skill.name, io.home)) {
+    copySkill(agent, skill.dir, io.out);
   }
+  writeKiroSteering(skill.dir, skill.name, io.home, io.out);
+}
+
+async function installLocal(options, io) {
   const baseDir = options.srcDir
     ? path.resolve(options.srcDir)
     : fs.existsSync(path.join(SCRIPT_DIR, '..', 'skills'))
@@ -144,15 +150,88 @@ async function install(options, io) {
   const exit = await gate(planInstall(skills, io.home), options, io);
   if (exit !== null) return exit;
 
-  for (const skill of skills) {
-    io.out(`Installing skill '${skill.name}'...`);
-    for (const agent of buildAgentPaths(skill.name, io.home)) {
-      copySkill(agent, skill.dir, io.out);
+  for (const skill of skills) installFromSource(skill, io);
+  io.out('Installation completed successfully!');
+  return 0;
+}
+
+function centralDir(home) {
+  return path.join(home, '.hjagar', 'skills');
+}
+
+// Unpacks one skill's release zip into the central store (~/.hjagar/skills/skills/<name>),
+// replacing only that skill so earlier installs survive. Extracted in a scratch dir first
+// so a bad archive never leaves a half-written central copy.
+function unpackToCentral(zip, skill, home) {
+  const scratch = fs.mkdtempSync(path.join(os.tmpdir(), 'hjagar-extract-'));
+  try {
+    extractZip(zip, scratch);
+    const nested = path.join(scratch, 'skills', skill);
+    const source = fs.existsSync(path.join(nested, 'SKILL.md')) ? nested : scratch;
+    if (!fs.existsSync(path.join(source, 'SKILL.md'))) {
+      throw new Error(`release archive for '${skill}' does not contain a SKILL.md`);
     }
-    writeKiroSteering(skill.dir, skill.name, io.home, io.out);
+    const dest = path.join(centralDir(home), 'skills', skill);
+    fs.mkdirSync(path.dirname(dest), { recursive: true });
+    fs.rmSync(dest, { recursive: true, force: true });
+    fs.cpSync(source, dest, { recursive: true });
+    return dest;
+  } finally {
+    fs.rmSync(scratch, { recursive: true, force: true });
+  }
+}
+
+async function installGlobal(options, io) {
+  io.out('Installing in GLOBAL Mode...');
+  let tags;
+  try {
+    tags = await io.releases.fetchTags();
+  } catch (error) {
+    throw new Error(`Failed to query releases for ${REPO}: ${error.message}`);
+  }
+
+  let names;
+  if (options.skill) {
+    names = [options.skill];
+  } else {
+    io.out(`No --skill specified; discovering all released skills in ${REPO}...`);
+    names = extractSkillNames(tags);
+    if (names.length === 0) throw new Error(`no releases found in ${REPO}.`);
+    io.out(`Discovered skills: ${names.join(' ')}`);
+  }
+
+  const releases = names.map((name) => ({ name, tag: selectHighestTag(name, tags) }));
+  for (const { name, tag } of releases) {
+    if (!tag) {
+      throw new Error(
+        `no released version found for skill '${name}' in ${REPO}.
+` +
+          'Install from a local checkout instead: install.mjs install --local -p <path>',
+      );
+    }
+    io.out(`Resolved release: ${tag}`);
+  }
+
+  const entries = planInstall(releases, io.home);
+  for (const { name } of releases) {
+    const target = path.join(centralDir(io.home), 'skills', name);
+    entries.push({ skill: name, target, action: fs.existsSync(target) ? 'replace' : 'create' });
+  }
+  const exit = await gate(entries, options, io);
+  if (exit !== null) return exit;
+
+  for (const { name, tag } of releases) {
+    io.out(`Downloading release ZIP for ${tag}...`);
+    const zip = await io.releases.downloadZip(tag, name);
+    const dir = unpackToCentral(zip, name, io.home);
+    installFromSource({ name, dir }, io);
   }
   io.out('Installation completed successfully!');
   return 0;
+}
+
+async function install(options, io) {
+  return options.local ? installLocal(options, io) : installGlobal(options, io);
 }
 
 export async function run(argv, overrides = {}) {
@@ -161,6 +240,7 @@ export async function run(argv, overrides = {}) {
     out: (line) => console.log(line),
     err: (line) => console.error(line),
     isInteractive: Boolean(process.stdin.isTTY),
+    releases: { fetchTags: () => fetchTags(), downloadZip: (tag, skill) => downloadZip(tag, skill) },
     confirm: async (question) => {
       const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
       try {
