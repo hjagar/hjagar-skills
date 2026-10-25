@@ -142,3 +142,23 @@ test('install rejects an invalid skill name, a missing skill and unknown options
   assert.match(h.text(), /Unknown command: frobnicate/);
   assert.deepEqual(fs.readdirSync(home), []);
 });
+
+test('flags that do not apply to the subcommand, or lack a value, are rejected without changes', async () => {
+  const repo = makeRepo();
+  const home = tmp();
+  const cases = [
+    [['uninstall', '--skill', 'x', '--local'], /--local/],
+    [['update', '--local'], /--local/],
+    [['install', '-l', '-p', repo, '--all'], /--all/],
+    [['update', '--all'], /--all/],
+    [['install', '-p', repo], /--path requires --local/],
+    [['install', '-l', '-p'], /Missing value for -p/],
+    [['install', '--skill'], /Missing value for --skill/],
+  ];
+  for (const [argv, pattern] of cases) {
+    const h = harness();
+    assert.equal(await run([...argv, '--dry-run'], { home, ...h.io }), 1, argv.join(' '));
+    assert.match(h.text(), pattern, argv.join(' '));
+  }
+  assert.deepEqual(fs.readdirSync(home), []);
+});
