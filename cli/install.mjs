@@ -23,6 +23,7 @@ Options:
   -l, --local         install from a local checkout (install only)
   -p, --path <dir>    checkout to install from (with --local)
   --skill <name>      act on a single skill
+  --all               uninstall every centrally installed skill (uninstall only)
   --dry-run           print the plan and change nothing
   -y, --yes           skip the confirmation prompt
   -h, --help          show this help`;
@@ -31,7 +32,7 @@ class UsageError extends Error {}
 
 function parseArgs(argv) {
   const [command, ...rest] = argv;
-  const options = { command, local: false, srcDir: '', skill: '', dryRun: false, yes: false, help: false };
+  const options = { command, local: false, srcDir: '', skill: '', all: false, dryRun: false, yes: false, help: false };
   for (let i = 0; i < rest.length; i++) {
     const arg = rest[i];
     switch (arg) {
@@ -45,6 +46,9 @@ function parseArgs(argv) {
         break;
       case '--skill':
         options.skill = rest[++i] ?? '';
+        break;
+      case '--all':
+        options.all = true;
         break;
       case '--dry-run':
         options.dryRun = true;
@@ -234,6 +238,128 @@ async function install(options, io) {
   return options.local ? installLocal(options, io) : installGlobal(options, io);
 }
 
+function readSkillVersion(file) {
+  const text = fs.readFileSync(file, 'utf8');
+  const frontmatter = /^---\r?\n([\s\S]*?)\r?\n---/.exec(text)?.[1] ?? '';
+  const declared = /^\s*version:\s*"?v?([0-9.]+)"?/m.exec(frontmatter) ?? /<!-- version: v?([0-9.]+) -->/.exec(text);
+  return declared ? declared[1] : '0.0.0';
+}
+
+function listCentralSkills(home) {
+  const dir = path.join(centralDir(home), 'skills');
+  if (!fs.existsSync(dir)) return [];
+  return fs
+    .readdirSync(dir)
+    .sort()
+    .filter((name) => fs.existsSync(path.join(dir, name, 'SKILL.md')));
+}
+
+async function update(options, io) {
+  const central = centralDir(io.home);
+  const names = options.skill ? [options.skill] : listCentralSkills(io.home);
+  const missing = names.filter((name) => !fs.existsSync(path.join(central, 'skills', name, 'SKILL.md')));
+  if (names.length === 0 || missing.length > 0) {
+    throw new Error(`skills are not installed globally at ${central}. Run install first.`);
+  }
+
+  io.out('Checking for updates...');
+  let tags;
+  try {
+    tags = await io.releases.fetchTags();
+  } catch (error) {
+    throw new Error(`Failed to fetch latest version info from GitHub: ${error.message}`);
+  }
+
+  const pending = [];
+  for (const name of names) {
+    const localVersion = readSkillVersion(path.join(central, 'skills', name, 'SKILL.md'));
+    const tag = selectHighestTag(name, tags);
+    if (!tag) {
+      throw new Error(
+        `no released version found for skill '${name}' in ${REPO}.
+` +
+          'Install from a local checkout instead: install.mjs install --local -p <path>',
+      );
+    }
+    const latestVersion = tag.slice(name.length + 2);
+    io.out(`${name}: local version v${localVersion}, latest remote version v${latestVersion}`);
+    if (localVersion === latestVersion) {
+      io.out(`You are already on the latest version: v${localVersion}`);
+    } else {
+      pending.push({ name, tag, latestVersion });
+    }
+  }
+  if (pending.length === 0) return 0;
+
+  // Only agents that already have the skill are refreshed; update never adds new agents.
+  const entries = [];
+  const present = (target) => fs.existsSync(target);
+  for (const { name } of pending) {
+    entries.push({ skill: name, target: path.join(central, 'skills', name), action: 'replace' });
+    for (const target of [...buildAgentPaths(name, io.home), kiroSteeringPath(name, io.home)]) {
+      if (present(target)) entries.push({ skill: name, target, action: 'replace' });
+    }
+  }
+  const exit = await gate(entries, options, io);
+  if (exit !== null) return exit;
+
+  for (const { name, tag, latestVersion } of pending) {
+    io.out(`Downloading release ZIP for ${tag}...`);
+    const dir = unpackToCentral(await io.releases.downloadZip(tag, name), name, io.home);
+    io.out(`Updating agent paths for skill '${name}'...`);
+    for (const agent of buildAgentPaths(name, io.home)) {
+      if (present(agent)) copySkill(agent, dir, io.out);
+    }
+    if (present(kiroSteeringPath(name, io.home))) writeKiroSteering(dir, name, io.home, io.out);
+    io.out(`Update completed successfully to version v${latestVersion}!`);
+  }
+  return 0;
+}
+
+async function uninstall(options, io) {
+  if (!options.all && !options.skill) {
+    throw new Error('specify --skill <name> or --all.');
+  }
+  const names = options.all ? listCentralSkills(io.home) : [options.skill];
+  const exists = (target) => {
+    try {
+      fs.lstatSync(target);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
+  const entries = [];
+  for (const name of names) {
+    const targets = [
+      ...buildAgentPaths(name, io.home),
+      kiroSteeringPath(name, io.home),
+      path.join(centralDir(io.home), 'skills', name),
+    ];
+    for (const target of targets) {
+      if (exists(target)) entries.push({ skill: name, target, action: 'remove' });
+    }
+  }
+  if (options.all && exists(centralDir(io.home))) {
+    entries.push({ skill: '(all)', target: centralDir(io.home), action: 'remove' });
+  }
+  if (entries.length === 0) {
+    io.out('Nothing to uninstall.');
+    return 0;
+  }
+
+  const exit = await gate(entries, options, io);
+  if (exit !== null) return exit;
+
+  for (const entry of entries) {
+    fs.rmSync(entry.target, { recursive: true, force: true });
+    io.out(`  Removed: ${entry.target}`);
+  }
+  io.out('Uninstallation completed successfully.');
+  return 0;
+}
+
 export async function run(argv, overrides = {}) {
   const io = {
     home: os.homedir(),
@@ -268,6 +394,10 @@ export async function run(argv, overrides = {}) {
     switch (options.command) {
       case 'install':
         return await install(options, io);
+      case 'update':
+        return await update(options, io);
+      case 'uninstall':
+        return await uninstall(options, io);
       default:
         throw new UsageError(`Unknown command: ${options.command}`);
     }
