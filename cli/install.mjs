@@ -30,6 +30,31 @@ Options:
 
 class UsageError extends Error {}
 
+const ALLOWED_FLAGS = {
+  install: ['local', 'srcDir', 'skill', 'dryRun', 'yes', 'help'],
+  update: ['skill', 'dryRun', 'yes', 'help'],
+  uninstall: ['skill', 'all', 'dryRun', 'yes', 'help'],
+};
+const FLAG_NAMES = { local: '--local', srcDir: '--path', skill: '--skill', all: '--all', dryRun: '--dry-run', yes: '--yes' };
+
+function valueOf(args, index, flag) {
+  const value = args[index];
+  if (value === undefined || value.startsWith('-')) throw new UsageError(`Missing value for ${flag}`);
+  return value;
+}
+
+// Rejects flags that the chosen subcommand would otherwise silently ignore.
+function checkFlags(options) {
+  const allowed = ALLOWED_FLAGS[options.command];
+  if (!allowed) return;
+  for (const [key, flag] of Object.entries(FLAG_NAMES)) {
+    if (options[key] && !allowed.includes(key)) {
+      throw new UsageError(`Option ${flag} does not apply to '${options.command}'`);
+    }
+  }
+  if (options.srcDir && !options.local) throw new UsageError('--path requires --local');
+}
+
 function parseArgs(argv) {
   const [command, ...rest] = argv;
   const options = { command, local: false, srcDir: '', skill: '', all: false, dryRun: false, yes: false, help: false };
@@ -42,10 +67,10 @@ function parseArgs(argv) {
         break;
       case '-p':
       case '--path':
-        options.srcDir = rest[++i] ?? '';
+        options.srcDir = valueOf(rest, ++i, arg);
         break;
       case '--skill':
-        options.skill = rest[++i] ?? '';
+        options.skill = valueOf(rest, ++i, arg);
         break;
       case '--all':
         options.all = true;
@@ -65,6 +90,7 @@ function parseArgs(argv) {
         throw new UsageError(`Unknown parameter: ${arg}`);
     }
   }
+  checkFlags(options);
   return options;
 }
 
