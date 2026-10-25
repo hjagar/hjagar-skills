@@ -17,7 +17,7 @@ Branch: feat/install-mjs-phase1 · Delivery: stacked-to-main, 2 slices (assumpti
 
 - [x] T1 (S1,S2) core lib: agent paths from manifest + `.claude-*` discovery, staged copy/swap, Kiro steering transform, skill-name validation · inline · commit: 4352b06 (RED: module not found; GREEN: 7/7 node:test)
 - [x] T2 (S1,S3) `install` local mode + CLI parsing + plan/`--dry-run`/confirm · inline · commit: a967b64 (RED: module not found; GREEN: 14/14 node:test; real --dry-run matches installed paths)
-- [ ] T3 (S1,S2) zip reader + global install (tag resolve, download) · inline · commit: -
+- [x] T3 (S1,S2) zip reader + global install (tag resolve, download) · inline · commit: a1cb509 (RED: module not found; GREEN: 23/23 node:test; real global --dry-run resolves tag)
 - [ ] T4 (S1,S3) `update` and `uninstall` subcommands with `--dry-run` · inline · commit: -
 - [ ] T5 (S4) output/filesystem comparison against `install.sh`/`update.sh`/`uninstall.sh`; independent verifier (Risk item 5: installers) · delegated verifier · commit: -
 
